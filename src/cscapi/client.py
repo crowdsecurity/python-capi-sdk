@@ -11,6 +11,7 @@ import jwt
 from more_itertools import batched
 
 from cscapi.storage import MachineModel, ReceivedDecision, SignalModel, StorageInterface
+from dataclasses import replace
 
 
 __version__ = metadata.version("cscapi").split("+")[0]
@@ -97,8 +98,7 @@ class CAPIClient:
             self._send_signals(token, signals)
 
         for signal in unsent_signals:
-            signal.sent = True
-            self.storage.update_or_create_signal(signal)
+            self.storage.update_or_create_signal(replace(signal, sent=True))
 
         if prune_after_send:
             self._prune_sent_signals()
