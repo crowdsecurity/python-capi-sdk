@@ -46,19 +46,9 @@ def create_signal(
     if "uuid" not in kwargs:
         kwargs["uuid"] = str(uuid.uuid4())
 
-    kwargs["source"] = {"ip": ip, "scope": "ip"}
+    kwargs["source"] = {"ip": attacker_ip, "scope": "ip"}
     kwargs["scenario"] = scenario
     kwargs["created_at"] = created_at
     kwargs["machine_id"] = machine_id
 
     return from_dict(SignalModel, kwargs)
-    # return SignalModel(
-    #     created_at=created_at,
-    #     machine_id=machine_id,
-    #     source=SourceModel(
-    #         ip=ip,
-    #         scope="ip"
-    #     ),
-    #     scenario=scenario,
-    #     **kwargs  # Place **kwargs inside the parentheses
-    # )
