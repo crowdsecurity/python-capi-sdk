@@ -17,6 +17,7 @@ class MachineModel:
     token: Optional[str] = ""
     password: Optional[str] = ""
     scenarios: Optional[str] = ""
+    is_failing: Optional[bool] = False
 
 
 @dataclass

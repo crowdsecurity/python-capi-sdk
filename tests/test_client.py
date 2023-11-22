@@ -37,7 +37,9 @@ from cscapi.client import (
     CAPI_SIGNALS_URL,
     CAPI_WATCHER_LOGIN_URL,
     CAPI_WATCHER_REGISTER_URL,
+    CAPI_METRICS_URL,
     CAPIClient,
+    machine_token_is_valid,
 )
 from cscapi.sql_storage import SQLStorage
 from cscapi.storage import MachineModel, SignalModel
@@ -105,7 +107,11 @@ def storage():
 
 @pytest.fixture
 def client(storage):
-    return CAPIClient(storage)
+    return CAPIClient(
+        storage,
+        scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
+        max_retries=0,
+    )
 
 
 class TestSendSignals:
@@ -119,6 +125,8 @@ class TestSendSignals:
             method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
         )
         httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+
         s1 = replace(mock_signals()[0], scenario="crowdsecurity/http-bf")
         s2 = mock_signals()[0]
         client.add_signals([s1, s2])
@@ -132,10 +140,10 @@ class TestSendSignals:
         assert machine is not None
         assert machine.token == token
         assert machine.password is not None
-        assert machine.scenarios == "crowdsecurity/http-bf,crowdsecurity/ssh-bf"
+        assert machine.scenarios == client.scenarios
 
         requests = httpx_mock.get_requests()
-        assert len(requests) == 3
+        assert len(requests) == 4
 
         assert requests[0].url == CAPI_WATCHER_REGISTER_URL
         assert requests[0].method == "POST"
@@ -145,6 +153,9 @@ class TestSendSignals:
 
         assert requests[2].url == CAPI_SIGNALS_URL
         assert requests[2].method == "POST"
+
+        assert requests[3].url == CAPI_METRICS_URL
+        assert requests[3].method == "POST"
 
     def test_signals_from_already_registered_machine(
         self, httpx_mock: HTTPXMock, client: CAPIClient
@@ -156,6 +167,7 @@ class TestSendSignals:
             method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
         )
         httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
 
         assert client.storage.get_machine_by_id("test") is None
 
@@ -180,10 +192,13 @@ class TestSendSignals:
 
         requests = httpx_mock.get_requests()
 
-        assert len(requests) == 3
+        assert len(requests) == 4
 
         assert requests[2].url == CAPI_SIGNALS_URL
         assert requests[2].method == "POST"
+
+        assert requests[3].url == CAPI_METRICS_URL
+        assert requests[3].method == "POST"
 
     def test_signals_from_already_registered_machine_with_stale_token(
         self, httpx_mock: HTTPXMock, client: CAPIClient
@@ -196,6 +211,7 @@ class TestSendSignals:
             method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
         )
         httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
 
         assert client.storage.get_machine_by_id("test") is None
 
@@ -219,7 +235,7 @@ class TestSendSignals:
         client.send_signals()
 
         requests = httpx_mock.get_requests()
-        assert len(requests) == 4
+        assert len(requests) == 5
 
         assert requests[2].url == CAPI_WATCHER_LOGIN_URL
         assert requests[2].method == "POST"
@@ -255,6 +271,8 @@ class TestSendSignals:
                 return httpx.Response(status_code=200, json={"message": "OK"})
             elif request.url == CAPI_SIGNALS_URL:
                 return httpx.Response(status_code=200, json="OK")
+            elif request.url == CAPI_METRICS_URL:
+                return httpx.Response(status_code=200, json="OK")
 
         httpx_mock.add_callback(resp)
 
@@ -264,7 +282,7 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id(stale_mid) is None
         client._make_machine(
             MachineModel(
-                stale_mid, stale_token, "crowdsecurity/http-bf,crowdsecurity/ssh-bf"
+                stale_mid, scenarios="crowdsecurity/http-bf,crowdsecurity/ssh-bf"
             )
         )
         assert client.storage.get_machine_by_id(stale_mid) is not None
@@ -274,7 +292,7 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id(good_mid) is None
         client._make_machine(
             MachineModel(
-                good_mid, good_token, "crowdsecurity/http-bf,crowdsecurity/ssh-bf"
+                good_mid, scenarios="crowdsecurity/http-bf,crowdsecurity/ssh-bf"
             )
         )
         assert client.storage.get_machine_by_id(good_mid) is not None
@@ -288,13 +306,32 @@ class TestSendSignals:
         # stale machine makes 1 req to refresh token
         # fresh machine makes 2 reqs to register and login
 
-        # good machine makes 1 req to send signals
-        # fresh machine makes 1 req to send signals
-        # stale machine makes 1 req to send signals
+        # good machine makes 1 req to send signals and 1 req to send metrics
+        # fresh machine makes 1 req to send signals and 1 req to send metrics
+        # stale machine makes 1 req to send signals and 1 req to send metrics
 
-        assert len(httpx_mock.get_requests()) == 10
+        assert len(httpx_mock.get_requests()) == 13
 
         assert client.storage.get_machine_by_id(fresh_mid) is not None
+
+    def test_signals_with_retry(self, httpx_mock: HTTPXMock, client: CAPIClient):
+        stale_token = dummy_token(exp=int(time.time()) - 3600)
+        httpx_mock.add_response(
+            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": stale_token}
+        )
+        httpx_mock.add_response(
+            method="POST", url=CAPI_SIGNALS_URL, text="OK", status_code=401
+        )
+        machine = MachineModel(
+            machine_id="test",
+            token=stale_token,
+            scenarios="crowdsecurity/http-bf,crowdsecurity/ssh-bf",
+        )
+        client.storage.update_or_create_machine(machine)
+        client.add_signals(mock_signals())
+        client.send_signals()
+        machine = client.storage.get_machine_by_id("test")
+        assert machine.is_failing == True
 
 
 class TestGetDecisions:

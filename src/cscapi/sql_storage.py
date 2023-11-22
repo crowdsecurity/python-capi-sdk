@@ -37,6 +37,7 @@ class MachineDBModel(Base):
     token = Column(String)
     password = Column(String)
     scenarios = Column(String)
+    is_failing = Column(Boolean, default=False)
 
 
 class DecisionDBModel(Base):
@@ -140,11 +141,12 @@ class SQLStorage(storage.StorageInterface):
         )
         if not exisiting:
             return
-        return MachineDBModel(
+        return storage.MachineModel(
             machine_id=exisiting.machine_id,
             token=exisiting.token,
             password=exisiting.password,
             scenarios=exisiting.scenarios,
+            is_failing=exisiting.is_failing,
         )
 
     def update_or_create_machine(self, machine: storage.MachineModel) -> bool:
