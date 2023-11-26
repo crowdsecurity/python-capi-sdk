@@ -27,7 +27,7 @@ CAPI_DECISIONS_URL = f"{CAPI_BASE_URL}/decisions/stream"
 CAPI_METRICS_URL = f"{CAPI_BASE_URL}/metrics"
 
 
-def machine_token_is_valid(machine: MachineModel) -> bool:
+def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
     logging.debug(f"checking if token is valid for machine {machine.machine_id}")
     try:
         payload = jwt.decode(machine.token, options={"verify_signature": False})
@@ -37,28 +37,34 @@ def machine_token_is_valid(machine: MachineModel) -> bool:
         )
         return False
     current_time = time.time()
-    is_not_expired = current_time < payload["exp"]
+    has_enough_ttl = current_time - latency_offset < payload["exp"]
     logging.debug(
-        f"token for machine {machine.machine_id} is not expired = {is_not_expired}"
+        f"token for machine {machine.machine_id} has_enough_ttl = {has_enough_ttl}"
     )
-    return is_not_expired
+    return has_enough_ttl
 
 
 class CAPIClient:
     def __init__(
-        self, storage: StorageInterface, scenarios: List[str], max_retries: int = 3
+        self,
+        storage: StorageInterface,
+        scenarios: List[str],
+        max_retries: int = 3,
+        latency_offset: int = 10,
     ):
         self.storage = storage
+        self.scenarios = ",".join(sorted(scenarios))
+        self.latency_offset = latency_offset
+        self.max_retries = max_retries
+
         self.http_client = httpx.Client()
         self.http_client.headers.update({"User-Agent": f"capi-py-sdk/{__version__}"})
-        self.scenarios = ",".join(sorted(scenarios))
-        self.max_retries = max_retries
 
     def add_signals(self, signals: List[SignalModel]):
         for signal in signals:
             self.storage.update_or_create_signal(signal)
 
-    def send_signals(self, prune_after_send: bool = False):
+    def send_signals(self, prune_after_send: bool = True):
         unsent_signals_by_machineid = self._group_signals_by_machine_id(
             filter(lambda signal: not signal.sent, self.storage.get_all_signals())
         )
@@ -77,19 +83,14 @@ class CAPIClient:
         signals_by_machineid: Dict[str, List[SignalModel]],
         prune_after_send: bool = False,
     ):
-        machines_to_process_attempts: List[MachineModel] = []
-        for machine_id, signals in signals_by_machineid.items():
-            machine_to_process = self._make_machine(
+        machines_to_process_attempts: List[MachineModel] = [
+            self._make_machine(
                 MachineModel(machine_id=machine_id, scenarios=self.scenarios)
             )
-            if not machine_to_process.is_failing:
-                machines_to_process_attempts.append(machine_to_process)
-            else:
-                logging.warning(
-                    f"machine {machine_to_process.machine_id} is marked as failing, skipping sending {len(signals)} signals"
-                )
+            for machine_id in signals_by_machineid.keys()
+        ]
 
-        next_machines_to_process_attempts: List[Tuple[MachineModel, int]] = []
+        retry_machines_to_process_attempts: List[Tuple[MachineModel, int]] = []
         attempt_count = 0
 
         while machines_to_process_attempts:
@@ -105,6 +106,12 @@ class CAPIClient:
                 break
 
             for machine_to_process in machines_to_process_attempts:
+                if machine_to_process.is_failing:
+                    logging.error(
+                        f"skipping sending signals for machine {machine_to_process.machine_id} as it's marked as failing"
+                    )
+                    continue
+
                 logging.info(
                     f"sending signals for machine {machine_to_process.machine_id}"
                 )
@@ -114,14 +121,11 @@ class CAPIClient:
                         signals_by_machineid[machine_to_process.machine_id],
                     )
                 except httpx.HTTPStatusError as exc:
-                    logging.debug(
+                    logging.error(
                         f"error while sending signals: {exc} for machine {machine_to_process.machine_id}"
                     )
                     if exc.response.status_code == 401:
                         if attempt_count >= self.max_retries:
-                            logging.error(
-                                f"Error while sending signals: {exc} for machine {machine_to_process.machine_id}"
-                            )
                             self.storage.update_or_create_machine(
                                 replace(machine_to_process, is_failing=True)
                             )
@@ -129,9 +133,8 @@ class CAPIClient:
                         machine_to_process = self._refresh_machine_token(
                             machine_to_process
                         )
-                        next_machines_to_process_attempts.append(machine_to_process)
+                        retry_machines_to_process_attempts.append(machine_to_process)
                         continue
-                    raise exc
                 if prune_after_send:
                     logging.info(
                         f"pruning sent signals for machine {machine_to_process.machine_id}"
@@ -150,7 +153,7 @@ class CAPIClient:
                     )
 
             attempt_count += 1
-            machines_to_process_attempts = next_machines_to_process_attempts
+            machines_to_process_attempts = retry_machines_to_process_attempts
 
     def _send_signals(self, token: str, signals: SignalModel):
         for signal_batch in batched(signals, 250):
@@ -177,7 +180,7 @@ class CAPIClient:
         )
         resp.raise_for_status()
 
-    def _prune_signals(self):
+    def _prune_sent_signals(self):
         signals = filter(lambda signal: signal.sent, self.storage.get_all_signals())
         self.storage.delete_signals(signals)
 
@@ -225,7 +228,7 @@ class CAPIClient:
             machine = self._register_machine(machine)
         else:
             machine = retrieved_machine
-        if not machine_token_is_valid(machine):
+        if not has_valid_token(machine, self.latency_offset):
             return self._refresh_machine_token(machine)
         return machine
 

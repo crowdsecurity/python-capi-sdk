@@ -39,7 +39,7 @@ from cscapi.client import (
     CAPI_WATCHER_REGISTER_URL,
     CAPI_METRICS_URL,
     CAPIClient,
-    machine_token_is_valid,
+    has_valid_token,
 )
 from cscapi.sql_storage import SQLStorage
 from cscapi.storage import MachineModel, SignalModel

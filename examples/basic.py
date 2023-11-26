@@ -1,10 +1,8 @@
-# Basic Usage
-
 from cscapi.client import CAPIClient
 from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal, generate_machine_id_from_key
 
-client = CAPIClient(SQLStorage())
+client = CAPIClient(SQLStorage(), scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"])
 
 signals = [
     create_signal(
