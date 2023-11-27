@@ -84,9 +84,7 @@ class CAPIClient:
         prune_after_send: bool = False,
     ):
         machines_to_process_attempts: List[MachineModel] = [
-            self._make_machine(
-                MachineModel(machine_id=machine_id, scenarios=self.scenarios)
-            )
+            MachineModel(machine_id=machine_id, scenarios=self.scenarios)
             for machine_id in signals_by_machineid.keys()
         ]
 
@@ -106,6 +104,7 @@ class CAPIClient:
                 break
 
             for machine_to_process in machines_to_process_attempts:
+                machine_to_process = self._make_machine(machine_to_process)
                 if machine_to_process.is_failing:
                     logging.error(
                         f"skipping sending signals for machine {machine_to_process.machine_id} as it's marked as failing"
@@ -130,9 +129,7 @@ class CAPIClient:
                                 replace(machine_to_process, is_failing=True)
                             )
                             continue
-                        machine_to_process = self._refresh_machine_token(
-                            machine_to_process
-                        )
+                        machine_to_process.token = None
                         retry_machines_to_process_attempts.append(machine_to_process)
                         continue
                 if prune_after_send:
