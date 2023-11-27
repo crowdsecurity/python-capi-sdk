@@ -171,7 +171,7 @@ class TestSendSignals:
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client._make_machine(
+        client._prepare_machine(
             MachineModel("test", "abcd", "crowdsecurity/http-bf,crowdsecurity/ssh-bf")
         )
 
@@ -215,7 +215,7 @@ class TestSendSignals:
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client._make_machine(
+        client._prepare_machine(
             MachineModel("test", "abcd", "crowdsecurity/http-bf,crowdsecurity/ssh-bf")
         )
 
@@ -280,7 +280,7 @@ class TestSendSignals:
 
         # stale machine
         assert client.storage.get_machine_by_id(stale_mid) is None
-        client._make_machine(
+        client._prepare_machine(
             MachineModel(
                 stale_mid, scenarios="crowdsecurity/http-bf,crowdsecurity/ssh-bf"
             )
@@ -290,7 +290,7 @@ class TestSendSignals:
 
         # good machine
         assert client.storage.get_machine_by_id(good_mid) is None
-        client._make_machine(
+        client._prepare_machine(
             MachineModel(
                 good_mid, scenarios="crowdsecurity/http-bf,crowdsecurity/ssh-bf"
             )
@@ -385,7 +385,7 @@ class TestGetDecisions:
         m1 = MachineModel("test")
 
         assert client.storage.get_machine_by_id("test") is None
-        client._make_machine(m1)
+        client._prepare_machine(m1)
 
         assert len(httpx_mock.get_requests()) == 2
         assert client.storage.get_machine_by_id("test") is not None
@@ -413,7 +413,7 @@ class TestGetDecisions:
         m1 = MachineModel("test")
 
         assert client.storage.get_machine_by_id("test") is None
-        client._make_machine(m1)
+        client._prepare_machine(m1)
 
         assert len(httpx_mock.get_requests()) == 2
         assert client.storage.get_machine_by_id("test") is not None
@@ -469,7 +469,7 @@ class TestEnroll:
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client._make_machine(MachineModel("test"))
+        client._prepare_machine(MachineModel("test"))
 
         assert len(httpx_mock.get_requests()) == 2
         assert client.storage.get_machine_by_id("test") is not None
@@ -498,7 +498,7 @@ class TestEnroll:
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client._make_machine(MachineModel("test"))
+        client._prepare_machine(MachineModel("test"))
 
         assert len(httpx_mock.get_requests()) == 2
         assert client.storage.get_machine_by_id("test") is not None

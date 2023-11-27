@@ -84,7 +84,9 @@ class CAPIClient:
         prune_after_send: bool = False,
     ):
         machines_to_process_attempts: List[MachineModel] = [
-            MachineModel(machine_id=machine_id, scenarios=self.scenarios)
+            self._register_if_not_registered(
+                MachineModel(machine_id=machine_id, scenarios=self.scenarios)
+            )
             for machine_id in signals_by_machineid.keys()
         ]
 
@@ -104,7 +106,7 @@ class CAPIClient:
                 break
 
             for machine_to_process in machines_to_process_attempts:
-                machine_to_process = self._make_machine(machine_to_process)
+                machine_to_process = self._ensure_machine_token(machine_to_process)
                 if machine_to_process.is_failing:
                     logging.error(
                         f"skipping sending signals for machine {machine_to_process.machine_id} as it's marked as failing"
@@ -219,12 +221,18 @@ class CAPIClient:
         self.storage.update_or_create_machine(machine)
         return machine
 
-    def _make_machine(self, machine: MachineModel):
+    def _prepare_machine(self, machine: MachineModel):
+        machine = self._register_if_not_registered(machine)
+        machine = self._ensure_machine_token(machine)
+        return machine
+
+    def _register_if_not_registered(self, machine: MachineModel) -> MachineModel:
         retrieved_machine = self.storage.get_machine_by_id(machine.machine_id)
         if not retrieved_machine:
-            machine = self._register_machine(machine)
-        else:
-            machine = retrieved_machine
+            return self._register_machine(machine)
+        return retrieved_machine
+
+    def _ensure_machine_token(self, machine: MachineModel) -> MachineModel:
         if not has_valid_token(machine, self.latency_offset):
             return self._refresh_machine_token(machine)
         return machine
@@ -233,7 +241,7 @@ class CAPIClient:
         self, main_machine_id: str, scenarios: List[str]
     ) -> List[ReceivedDecision]:
         scenarios = ",".join(sorted(set(scenarios)))
-        machine = self._make_machine(
+        machine = self._prepare_machine(
             MachineModel(machine_id=main_machine_id, scenarios=scenarios)
         )
         resp = self.http_client.get(
@@ -249,13 +257,13 @@ class CAPIClient:
         next_machine_ids: List[str] = []
         while machine_ids:
             for machine_id in machine_ids:
-                machine = self._make_machine(MachineModel(machine_id=machine_id))
+                machine = self._prepare_machine(MachineModel(machine_id=machine_id))
                 try:
-                    self.http_client.post(
+                    resp = self.http_client.post(
                         CAPI_ENROLL_URL,
                         json={
                             "name": name,
-                            "overwrite": True,
+                            "overwrite": False,
                             "attachment_key": attachment_key,
                             "tags": tags,
                         },
