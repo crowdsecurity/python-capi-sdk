@@ -84,9 +84,7 @@ class CAPIClient:
         prune_after_send: bool = False,
     ):
         machines_to_process_attempts: List[MachineModel] = [
-            self._register_if_not_registered(
-                MachineModel(machine_id=machine_id, scenarios=self.scenarios)
-            )
+            MachineModel(machine_id=machine_id, scenarios=self.scenarios)
             for machine_id in signals_by_machineid.keys()
         ]
 
@@ -106,7 +104,7 @@ class CAPIClient:
                 break
 
             for machine_to_process in machines_to_process_attempts:
-                machine_to_process = self._ensure_machine_token(machine_to_process)
+                machine_to_process = self._prepare_machine(machine_to_process)
                 if machine_to_process.is_failing:
                     logging.error(
                         f"skipping sending signals for machine {machine_to_process.machine_id} as it's marked as failing"
@@ -161,6 +159,11 @@ class CAPIClient:
                 CAPI_SIGNALS_URL, json=body, headers={"Authorization": token}
             )
             resp.raise_for_status()
+            self._mark_signals_as_sent(signal_batch)
+
+    def _mark_signals_as_sent(self, signals: List[SignalModel]):
+        for signal in signals:
+            self.storage.update_or_create_signal(replace(signal, sent=True))
 
     def _send_metrics_for_machine(self, machine: MachineModel):
         resp = self.http_client.post(
@@ -176,11 +179,19 @@ class CAPIClient:
                     }
                 ],
             },
+            headers={"Authorization": machine.token},
         )
         resp.raise_for_status()
 
     def _prune_sent_signals(self):
-        signals = filter(lambda signal: signal.sent, self.storage.get_all_signals())
+        signals = list(
+            filter(lambda signal: signal.sent, self.storage.get_all_signals())
+        )
+
+        self.storage.delete_signals(signals)
+
+    def _clear_all_signals(self):
+        signals = self.storage.get_all_signals()
         self.storage.delete_signals(signals)
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
@@ -222,17 +233,17 @@ class CAPIClient:
         return machine
 
     def _prepare_machine(self, machine: MachineModel):
-        machine = self._register_if_not_registered(machine)
-        machine = self._ensure_machine_token(machine)
+        machine = self._ensure_machine_capi_registered(machine)
+        machine = self._ensure_machine_capi_connected(machine)
         return machine
 
-    def _register_if_not_registered(self, machine: MachineModel) -> MachineModel:
+    def _ensure_machine_capi_registered(self, machine: MachineModel) -> MachineModel:
         retrieved_machine = self.storage.get_machine_by_id(machine.machine_id)
         if not retrieved_machine:
             return self._register_machine(machine)
         return retrieved_machine
 
-    def _ensure_machine_token(self, machine: MachineModel) -> MachineModel:
+    def _ensure_machine_capi_connected(self, machine: MachineModel) -> MachineModel:
         if not has_valid_token(machine, self.latency_offset):
             return self._refresh_machine_token(machine)
         return machine

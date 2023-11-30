@@ -157,6 +157,26 @@ class TestSendSignals:
         assert requests[3].url == CAPI_METRICS_URL
         assert requests[3].method == "POST"
 
+    def test_signal_gets_deleted_after_send(
+        self, httpx_mock: HTTPXMock, client: CAPIClient
+    ):
+        assert len(client.storage.get_all_signals()) == 0
+        token = dummy_token()
+        httpx_mock.add_response(
+            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": token}
+        )
+        httpx_mock.add_response(
+            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+        )
+        httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+
+        s1 = mock_signals()[0]
+        client.add_signals([s1])
+        assert len(client.storage.get_all_signals()) == 1
+        client.send_signals(prune_after_send=True)
+        assert len(client.storage.get_all_signals()) == 0
+
     def test_signals_from_already_registered_machine(
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):

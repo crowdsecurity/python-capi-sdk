@@ -198,6 +198,7 @@ class SQLStorage(storage.StorageInterface):
             .filter(SignalDBModel.alert_id == signal.alert_id)
             .first()
         )
+
         if not exisiting:
             self.session.add(to_insert)
             self.session.commit()
@@ -205,12 +206,13 @@ class SQLStorage(storage.StorageInterface):
 
         for c in to_insert.__table__.columns:
             setattr(exisiting, c.name, getattr(to_insert, c.name))
+
         self.session.commit()
         return False
 
     def delete_signals(self, signals: List[storage.SignalModel]):
         stmt = delete(SignalDBModel).where(
-            SignalDBModel.alert_id in ([signal.alert_id for signal in signals])
+            SignalDBModel.alert_id.in_((signal.alert_id for signal in signals))
         )
         self.session.execute(stmt)
 
