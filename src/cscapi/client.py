@@ -10,7 +10,6 @@ from importlib import metadata
 import httpx
 import jwt
 from more_itertools import batched
-
 from cscapi.storage import MachineModel, ReceivedDecision, SignalModel, StorageInterface
 from dataclasses import replace
 
@@ -51,6 +50,8 @@ class CAPIClient:
         scenarios: List[str],
         max_retries: int = 3,
         latency_offset: int = 10,
+        user_agent_prefix: str = "",
+        **kwargs,
     ):
         self.storage = storage
         self.scenarios = ",".join(sorted(scenarios))
@@ -58,7 +59,9 @@ class CAPIClient:
         self.max_retries = max_retries
 
         self.http_client = httpx.Client()
-        self.http_client.headers.update({"User-Agent": f"capi-py-sdk/{__version__}"})
+        self.http_client.headers.update(
+            {"User-Agent": f"{user_agent_prefix}-capi-py-sdk/{__version__}"}
+        )
 
     def add_signals(self, signals: List[SignalModel]):
         for signal in signals:
@@ -88,7 +91,7 @@ class CAPIClient:
             for machine_id in signals_by_machineid.keys()
         ]
 
-        retry_machines_to_process_attempts: List[Tuple[MachineModel, int]] = []
+        retry_machines_to_process_attempts: List[MachineModel] = []
         attempt_count = 0
 
         while machines_to_process_attempts:
@@ -287,9 +290,9 @@ class CAPIClient:
                                 f"Error while enrolling machine {machine_id}: {exc}"
                             )
                             continue
-                        machine = self._refresh_machine_token(machine)
                         next_machine_ids.append(machine_id)
                         continue
                     raise exc
             machine_ids = next_machine_ids
             attempt_count += 1
+            time.sleep(5)
