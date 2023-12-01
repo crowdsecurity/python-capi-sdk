@@ -40,6 +40,7 @@ from cscapi.client import (
     CAPI_METRICS_URL,
     CAPIClient,
     has_valid_token,
+    CAPIClientConfig,
 )
 from cscapi.sql_storage import SQLStorage
 from cscapi.storage import MachineModel, SignalModel
@@ -108,9 +109,12 @@ def storage():
 @pytest.fixture
 def client(storage):
     return CAPIClient(
-        storage,
-        scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
-        max_retries=0,
+        CAPIClientConfig(
+            storage,
+            scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
+            max_retries=0,
+            retry_delay=0,
+        )
     )
 
 

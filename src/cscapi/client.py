@@ -3,7 +3,7 @@ import logging
 import secrets
 import time
 from collections import defaultdict
-from dataclasses import asdict, replace
+from dataclasses import asdict, replace, dataclass
 from importlib import metadata
 from typing import Dict, Iterable, List
 
@@ -43,24 +43,27 @@ def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
     return has_enough_ttl
 
 
+@dataclass
+class CAPIClientConfig:
+    storage: StorageInterface
+    scenarios: List[str]
+    max_retries: int = 3
+    latency_offset: int = 10
+    user_agent_prefix: str = ""
+    retry_delay: int = 5
+
+
 class CAPIClient:
-    def __init__(
-        self,
-        storage: StorageInterface,
-        scenarios: List[str],
-        max_retries: int = 3,
-        latency_offset: int = 10,
-        user_agent_prefix: str = "",
-        **kwargs,
-    ):
-        self.storage = storage
-        self.scenarios = ",".join(sorted(scenarios))
-        self.latency_offset = latency_offset
-        self.max_retries = max_retries
+    def __init__(self, config: CAPIClientConfig):
+        self.storage = config.storage
+        self.scenarios = ",".join(sorted(config.scenarios))
+        self.latency_offset = config.latency_offset
+        self.max_retries = config.max_retries
+        self.retry_delay = config.retry_delay
 
         self.http_client = httpx.Client()
         self.http_client.headers.update(
-            {"User-Agent": f"{user_agent_prefix}-capi-py-sdk/{__version__}"}
+            {"User-Agent": f"{config.user_agent_prefix}-capi-py-sdk/{__version__}"}
         )
 
     def add_signals(self, signals: List[SignalModel]):
@@ -192,7 +195,7 @@ class CAPIClient:
                 logging.error(
                     f"received error {exc} while sending metrics for machine {machine.machine_id}"
                 )
-                time.sleep(5)
+                time.sleep(self.retry_delay)
 
     def _prune_sent_signals(self):
         signals = list(
@@ -303,4 +306,4 @@ class CAPIClient:
                     raise exc
             machine_ids = next_machine_ids
             attempt_count += 1
-            time.sleep(5)
+            time.sleep(self.retry_delay)
