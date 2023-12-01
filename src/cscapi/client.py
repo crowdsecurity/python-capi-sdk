@@ -1,17 +1,17 @@
-import time
 import datetime
-import secrets
-from collections import defaultdict
-from dataclasses import asdict
 import logging
-from typing import Dict, List, Tuple, Iterable
+import secrets
+import time
+from collections import defaultdict
+from dataclasses import asdict, replace
 from importlib import metadata
+from typing import Dict, Iterable, List
 
 import httpx
 import jwt
 from more_itertools import batched
+
 from cscapi.storage import MachineModel, ReceivedDecision, SignalModel, StorageInterface
-from dataclasses import replace
 
 __version__ = metadata.version("cscapi").split("+")[0]
 
@@ -169,22 +169,30 @@ class CAPIClient:
             self.storage.update_or_create_signal(replace(signal, sent=True))
 
     def _send_metrics_for_machine(self, machine: MachineModel):
-        resp = self.http_client.post(
-            CAPI_METRICS_URL,
-            json={
-                "bouncers": [],
-                "machines": [
-                    {
-                        "last_update": datetime.datetime.now().isoformat(),
-                        "last_push": datetime.datetime.now().isoformat(),
-                        "version": __version__,
-                        "name": machine.machine_id,
-                    }
-                ],
-            },
-            headers={"Authorization": machine.token},
-        )
-        resp.raise_for_status()
+        for _ in range(self.max_retries + 1):
+            resp = self.http_client.post(
+                CAPI_METRICS_URL,
+                json={
+                    "bouncers": [],
+                    "machines": [
+                        {
+                            "last_update": datetime.datetime.now().isoformat(),
+                            "last_push": datetime.datetime.now().isoformat(),
+                            "version": __version__,
+                            "name": machine.machine_id,
+                        }
+                    ],
+                },
+                headers={"Authorization": machine.token},
+            )
+            try:
+                resp.raise_for_status()
+                break
+            except httpx.HTTPStatusError as exc:
+                logging.error(
+                    f"received error {exc} while sending metrics for machine {machine.machine_id}"
+                )
+                time.sleep(5)
 
     def _prune_sent_signals(self):
         signals = list(
@@ -210,7 +218,7 @@ class CAPIClient:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logging.error(
-                f"Error while refreshing token: machine_id might be already registered or password is wrong"
+                "Error while refreshing token: machine_id might be already registered or password is wrong"
             )
             raise exc
 
