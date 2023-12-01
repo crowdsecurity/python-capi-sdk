@@ -3,8 +3,8 @@ from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal, generate_machine_id_from_key
 
 client = CAPIClient(
-    config=CAPIClientConfig(scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"]),
     storage=SQLStorage(),
+    config=CAPIClientConfig(scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"]),
 )
 
 # Fetch signals from your data, and convert it into a list of signals accepted by CrowdSec

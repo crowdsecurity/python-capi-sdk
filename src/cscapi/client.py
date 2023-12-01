@@ -53,7 +53,7 @@ class CAPIClientConfig:
 
 
 class CAPIClient:
-    def __init__(self, config: CAPIClientConfig, storage: StorageInterface):
+    def __init__(self, storage: StorageInterface, config: CAPIClientConfig):
         self.storage = storage
 
         self.scenarios = ",".join(sorted(config.scenarios))
