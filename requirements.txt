@@ -1,0 +1,7 @@
+sqlalchemy
+python-dateutil
+httpx
+dacite
+importlib-metadata
+pyjwt
+more-itertools
