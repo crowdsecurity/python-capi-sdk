@@ -110,11 +110,11 @@ def storage():
 def client(storage):
     return CAPIClient(
         CAPIClientConfig(
-            storage,
             scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
             max_retries=0,
             retry_delay=0,
-        )
+        ),
+        storage,
     )
 
 

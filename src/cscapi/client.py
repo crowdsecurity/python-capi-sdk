@@ -45,7 +45,6 @@ def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
 
 @dataclass
 class CAPIClientConfig:
-    storage: StorageInterface
     scenarios: List[str]
     max_retries: int = 3
     latency_offset: int = 10
@@ -54,8 +53,9 @@ class CAPIClientConfig:
 
 
 class CAPIClient:
-    def __init__(self, config: CAPIClientConfig):
-        self.storage = config.storage
+    def __init__(self, config: CAPIClientConfig, storage: StorageInterface):
+        self.storage = storage
+
         self.scenarios = ",".join(sorted(config.scenarios))
         self.latency_offset = config.latency_offset
         self.max_retries = config.max_retries
