@@ -46,7 +46,7 @@ def create_signal(
     if "uuid" not in kwargs:
         kwargs["uuid"] = str(uuid.uuid4())
 
-    kwargs["source"] = {"ip": attacker_ip, "scope": "ip"}
+    kwargs["source"] = {"value": attacker_ip, "scope": "ip"}
     kwargs["scenario"] = scenario
     kwargs["created_at"] = created_at
     kwargs["machine_id"] = machine_id
