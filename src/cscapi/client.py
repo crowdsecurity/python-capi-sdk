@@ -166,7 +166,9 @@ class CAPIClient:
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]
             resp = self.http_client.post(
-                self._get_url(CAPI_SIGNALS_ENDPOINT), json=body, headers={"Authorization": token}
+                self._get_url(CAPI_SIGNALS_ENDPOINT),
+                json=body,
+                headers={"Authorization": token},
             )
             resp.raise_for_status()
             self._mark_signals_as_sent(signal_batch)
@@ -274,7 +276,8 @@ class CAPIClient:
             MachineModel(machine_id=main_machine_id, scenarios=scenarios)
         )
         resp = self.http_client.get(
-            self._get_url(CAPI_DECISIONS_ENDPOINT), headers={"Authorization": machine.token}
+            self._get_url(CAPI_DECISIONS_ENDPOINT),
+            headers={"Authorization": machine.token},
         )
 
         return resp.json()
