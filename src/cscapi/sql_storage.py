@@ -8,7 +8,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
-    String,
+    TEXT,
     create_engine,
     delete,
     update,
@@ -33,10 +33,10 @@ class MachineDBModel(Base):
     __tablename__ = "machine_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    machine_id = Column(String)
-    token = Column(String)
-    password = Column(String)
-    scenarios = Column(String)
+    machine_id = Column(TEXT)
+    token = Column(TEXT)
+    password = Column(TEXT)
+    scenarios = Column(TEXT)
     is_failing = Column(Boolean, default=False)
 
 
@@ -44,15 +44,15 @@ class DecisionDBModel(Base):
     __tablename__ = "decision_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    duration = Column(String)
-    uuid = Column(String)
-    scenario = Column(String)
-    origin = Column(String)
-    scope = Column(String)
+    duration = Column(TEXT)
+    uuid = Column(TEXT)
+    scenario = Column(TEXT)
+    origin = Column(TEXT)
+    scope = Column(TEXT)
     simulated = Column(Boolean)
-    until = Column(String)
-    type = Column(String)
-    value = Column(String)
+    until = Column(TEXT)
+    type = Column(TEXT)
+    value = Column(TEXT)
     signal_id: Mapped[int] = mapped_column(
         "signal_id", ForeignKey("signal_models.alert_id")
     )
@@ -62,14 +62,14 @@ class SourceDBModel(Base):
     __tablename__ = "source_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    scope = Column(String)
-    ip = Column(String)
+    scope = Column(TEXT)
+    ip = Column(TEXT)
     latitude = Column(Float)
-    as_number = Column(String)
-    range = Column(String)
-    cn = Column(String)
-    value = Column(String)
-    as_name = Column(String)
+    as_number = Column(TEXT)
+    range = Column(TEXT)
+    cn = Column(TEXT)
+    value = Column(TEXT)
+    as_name = Column(TEXT)
     longitude = Column(Float)
 
 
@@ -77,8 +77,8 @@ class ContextDBModel(Base):
     __tablename__ = "context_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    value = Column(String)
-    key = Column(String)
+    value = Column(TEXT)
+    key = Column(TEXT)
     signal_id: Mapped[int] = mapped_column(
         "signal_id", ForeignKey("signal_models.alert_id")
     )
@@ -88,16 +88,16 @@ class SignalDBModel(Base):
     __tablename__ = "signal_models"
 
     alert_id = Column(Integer, primary_key=True, autoincrement=True)
-    created_at = Column(String)
-    machine_id = Column(String)
-    scenario_version = Column(String, nullable=True)
-    message = Column(String, nullable=True)
-    uuid = Column(String)
-    start_at = Column(String, nullable=True)
-    scenario_trust = Column(String, nullable=True)
-    scenario_hash = Column(String, nullable=True)
-    scenario = Column(String, nullable=True)
-    stop_at = Column(String, nullable=True)
+    created_at = Column(TEXT)
+    machine_id = Column(TEXT)
+    scenario_version = Column(TEXT, nullable=True)
+    message = Column(TEXT, nullable=True)
+    uuid = Column(TEXT)
+    start_at = Column(TEXT, nullable=True)
+    scenario_trust = Column(TEXT, nullable=True)
+    scenario_hash = Column(TEXT, nullable=True)
+    scenario = Column(TEXT, nullable=True)
+    stop_at = Column(TEXT, nullable=True)
     sent = Column(Boolean, default=False)
 
     source_id = Column(Integer, ForeignKey("source_models.id"), nullable=True)
