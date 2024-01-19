@@ -48,9 +48,9 @@ def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
 class CAPIClientConfig:
     scenarios: List[str]
     prod: bool = False
+    user_agent_prefix: str = ""
     max_retries: int = 3
     latency_offset: int = 10
-    user_agent_prefix: str = ""
     retry_delay: int = 5
 
 
