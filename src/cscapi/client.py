@@ -18,12 +18,13 @@ __version__ = metadata.version("cscapi").split("+")[0]
 logging.getLogger("capi-py-sdk").addHandler(logging.NullHandler())
 
 CAPI_BASE_URL = "https://api.crowdsec.net/v3"
-CAPI_WATCHER_REGISTER_URL = f"{CAPI_BASE_URL}/watchers"
-CAPI_WATCHER_LOGIN_URL = f"{CAPI_BASE_URL}/watchers/login"
-CAPI_ENROLL_URL = f"{CAPI_BASE_URL}/watchers/enroll"
-CAPI_SIGNALS_URL = f"{CAPI_BASE_URL}/signals"
-CAPI_DECISIONS_URL = f"{CAPI_BASE_URL}/decisions/stream"
-CAPI_METRICS_URL = f"{CAPI_BASE_URL}/metrics"
+CAPI_BASE_DEV_URL = "https://api.dev.crowdsec.net/v3"
+CAPI_WATCHER_REGISTER_ENDPOINT = "/watchers"
+CAPI_WATCHER_LOGIN_ENDPOINT = "/watchers/login"
+CAPI_ENROLL_ENDPOINT = "/watchers/enroll"
+CAPI_SIGNALS_ENDPOINT = "/signals"
+CAPI_DECISIONS_ENDPOINT = "/decisions/stream"
+CAPI_METRICS_ENDPOINT = "/metrics"
 
 
 def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
@@ -46,6 +47,7 @@ def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
 @dataclass
 class CAPIClientConfig:
     scenarios: List[str]
+    prod: bool = False
     max_retries: int = 3
     latency_offset: int = 10
     user_agent_prefix: str = ""
@@ -60,6 +62,8 @@ class CAPIClient:
         self.latency_offset = config.latency_offset
         self.max_retries = config.max_retries
         self.retry_delay = config.retry_delay
+
+        self.url = CAPI_BASE_URL if config.prod else CAPI_BASE_DEV_URL
 
         self.http_client = httpx.Client()
         self.http_client.headers.update(
@@ -162,7 +166,7 @@ class CAPIClient:
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]
             resp = self.http_client.post(
-                CAPI_SIGNALS_URL, json=body, headers={"Authorization": token}
+                self._get_url(CAPI_SIGNALS_ENDPOINT), json=body, headers={"Authorization": token}
             )
             resp.raise_for_status()
             self._mark_signals_as_sent(signal_batch)
@@ -174,7 +178,7 @@ class CAPIClient:
     def _send_metrics_for_machine(self, machine: MachineModel):
         for _ in range(self.max_retries + 1):
             resp = self.http_client.post(
-                CAPI_METRICS_URL,
+                self._get_url(CAPI_METRICS_ENDPOINT),
                 json={
                     "bouncers": [],
                     "machines": [
@@ -210,7 +214,7 @@ class CAPIClient:
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
         resp = self.http_client.post(
-            CAPI_WATCHER_LOGIN_URL,
+            self._get_url(CAPI_WATCHER_LOGIN_ENDPOINT),
             json={
                 "machine_id": machine.machine_id,
                 "password": machine.password,
@@ -237,7 +241,7 @@ class CAPIClient:
             machine.password if machine.password else secrets.token_urlsafe(32)
         )
         resp = self.http_client.post(
-            CAPI_WATCHER_REGISTER_URL,
+            self._get_url(CAPI_WATCHER_REGISTER_ENDPOINT),
             json={
                 "machine_id": machine.machine_id,
                 "password": machine.password,
@@ -270,10 +274,13 @@ class CAPIClient:
             MachineModel(machine_id=main_machine_id, scenarios=scenarios)
         )
         resp = self.http_client.get(
-            CAPI_DECISIONS_URL, headers={"Authorization": machine.token}
+            self._get_url(CAPI_DECISIONS_ENDPOINT), headers={"Authorization": machine.token}
         )
 
         return resp.json()
+
+    def _get_url(self, endpoint: str) -> str:
+        return self.url + endpoint
 
     def enroll_machines(
         self, machine_ids: List[str], name: str, attachment_key: str, tags: List[str]
@@ -285,7 +292,7 @@ class CAPIClient:
                 machine = self._prepare_machine(MachineModel(machine_id=machine_id))
                 try:
                     resp = self.http_client.post(
-                        CAPI_ENROLL_URL,
+                        self.url + CAPI_ENROLL_ENDPOINT,
                         json={
                             "name": name,
                             "overwrite": False,

@@ -32,12 +32,14 @@ from dacite import from_dict
 from pytest_httpx import HTTPXMock
 
 from cscapi.client import (
-    CAPI_DECISIONS_URL,
-    CAPI_ENROLL_URL,
-    CAPI_SIGNALS_URL,
-    CAPI_WATCHER_LOGIN_URL,
-    CAPI_WATCHER_REGISTER_URL,
-    CAPI_METRICS_URL,
+    CAPI_BASE_URL,
+    CAPI_BASE_DEV_URL,
+    CAPI_DECISIONS_ENDPOINT,
+    CAPI_ENROLL_ENDPOINT,
+    CAPI_SIGNALS_ENDPOINT,
+    CAPI_WATCHER_LOGIN_ENDPOINT,
+    CAPI_WATCHER_REGISTER_ENDPOINT,
+    CAPI_METRICS_ENDPOINT,
     CAPIClient,
     has_valid_token,
     CAPIClientConfig,
@@ -118,18 +120,79 @@ def client(storage):
     )
 
 
+@pytest.fixture
+def prod_client(storage):
+    return CAPIClient(
+        storage,
+        CAPIClientConfig(
+            prod=True,
+            scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
+            max_retries=0,
+            retry_delay=0,
+        ),
+    )
+
+
+class TestChooseEnv:
+    def test_handle_dev_url(
+        self, client: CAPIClient, httpx_mock: HTTPXMock
+    ):
+        assert client.url == CAPI_BASE_DEV_URL
+
+        httpx_mock.add_response(
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
+        )
+        httpx_mock.add_response(
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
+        )
+        httpx_mock.add_response(
+            method="GET",
+            url=CAPI_BASE_DEV_URL + CAPI_DECISIONS_ENDPOINT,
+            json={"new": [asdict(mock_signals()[0].decisions[0])], "deleted": []},
+        )
+
+        client.get_decisions("test", ["crowdsecurity/http-bf"])
+
+        requests = httpx_mock.get_requests()
+
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
+
+    def test_handle_prod_url(
+        self, prod_client: CAPIClient, httpx_mock: HTTPXMock
+    ):
+        assert prod_client.url == CAPI_BASE_URL
+
+        httpx_mock.add_response(
+            method="POST", url=CAPI_BASE_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
+        )
+        httpx_mock.add_response(
+            method="POST", url=CAPI_BASE_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
+        )
+        httpx_mock.add_response(
+            method="GET",
+            url=CAPI_BASE_URL + CAPI_DECISIONS_ENDPOINT,
+            json={"new": [asdict(mock_signals()[0].decisions[0])], "deleted": []},
+        )
+
+        prod_client.get_decisions("test", ["crowdsecurity/http-bf"])
+
+        requests = httpx_mock.get_requests()
+
+        assert requests[0].url == CAPI_BASE_URL + CAPI_WATCHER_REGISTER_ENDPOINT
+
+
 class TestSendSignals:
     def test_fresh_send_signals(self, httpx_mock: HTTPXMock, client: CAPIClient):
         assert len(client.storage.get_all_signals()) == 0
         token = dummy_token()
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": token}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": token}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
-        httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
-        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK")
 
         s1 = replace(mock_signals()[0], scenario="crowdsecurity/http-bf")
         s2 = mock_signals()[0]
@@ -149,16 +212,16 @@ class TestSendSignals:
         requests = httpx_mock.get_requests()
         assert len(requests) == 4
 
-        assert requests[0].url == CAPI_WATCHER_REGISTER_URL
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
         assert requests[0].method == "POST"
 
-        assert requests[1].url == CAPI_WATCHER_LOGIN_URL
+        assert requests[1].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
         assert requests[1].method == "POST"
 
-        assert requests[2].url == CAPI_SIGNALS_URL
+        assert requests[2].url == CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT
         assert requests[2].method == "POST"
 
-        assert requests[3].url == CAPI_METRICS_URL
+        assert requests[3].url == CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT
         assert requests[3].method == "POST"
 
     def test_signal_gets_deleted_after_send(
@@ -167,13 +230,13 @@ class TestSendSignals:
         assert len(client.storage.get_all_signals()) == 0
         token = dummy_token()
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": token}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": token}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
-        httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
-        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK")
 
         s1 = mock_signals()[0]
         client.add_signals([s1])
@@ -185,13 +248,13 @@ class TestSendSignals:
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": dummy_token()}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
-        httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
-        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK")
 
         assert client.storage.get_machine_by_id("test") is None
 
@@ -203,10 +266,10 @@ class TestSendSignals:
 
         assert len(requests) == 2
 
-        assert requests[0].url == CAPI_WATCHER_REGISTER_URL
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
         assert requests[0].method == "POST"
 
-        assert requests[1].url == CAPI_WATCHER_LOGIN_URL
+        assert requests[1].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
         assert requests[1].method == "POST"
 
         assert client.storage.get_machine_by_id("test") is not None
@@ -218,10 +281,10 @@ class TestSendSignals:
 
         assert len(requests) == 4
 
-        assert requests[2].url == CAPI_SIGNALS_URL
+        assert requests[2].url == CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT
         assert requests[2].method == "POST"
 
-        assert requests[3].url == CAPI_METRICS_URL
+        assert requests[3].url == CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT
         assert requests[3].method == "POST"
 
     def test_signals_from_already_registered_machine_with_stale_token(
@@ -229,13 +292,13 @@ class TestSendSignals:
     ):
         token = dummy_token(exp=int(time.time()) - 3600)
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": token}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": token}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
-        httpx_mock.add_response(method="POST", url=CAPI_SIGNALS_URL, text="OK")
-        httpx_mock.add_response(method="POST", url=CAPI_METRICS_URL, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT, text="OK")
+        httpx_mock.add_response(method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK")
 
         assert client.storage.get_machine_by_id("test") is None
 
@@ -247,10 +310,10 @@ class TestSendSignals:
 
         assert len(requests) == 2
 
-        assert requests[0].url == CAPI_WATCHER_REGISTER_URL
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
         assert requests[0].method == "POST"
 
-        assert requests[1].url == CAPI_WATCHER_LOGIN_URL
+        assert requests[1].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
         assert requests[1].method == "POST"
 
         assert client.storage.get_machine_by_id("test") is not None
@@ -261,10 +324,10 @@ class TestSendSignals:
         requests = httpx_mock.get_requests()
         assert len(requests) == 5
 
-        assert requests[2].url == CAPI_WATCHER_LOGIN_URL
+        assert requests[2].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
         assert requests[2].method == "POST"
 
-        assert requests[3].url == CAPI_SIGNALS_URL
+        assert requests[3].url == CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT
         assert requests[3].method == "POST"
 
     def test_signals_from_mixed_machines(
@@ -281,7 +344,7 @@ class TestSendSignals:
         ]
 
         def resp(request: httpx.Request):
-            if request.url == CAPI_WATCHER_LOGIN_URL:
+            if request.url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT:
                 machine_id = json.loads(request.content)["machine_id"]
                 if machine_id == "fresh":
                     return httpx.Response(
@@ -291,11 +354,11 @@ class TestSendSignals:
                     return httpx.Response(status_code=200, json={"token": stale_token})
                 elif machine_id == "good":
                     return httpx.Response(status_code=200, json={"token": good_token})
-            elif request.url == CAPI_WATCHER_REGISTER_URL:
+            elif request.url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT:
                 return httpx.Response(status_code=200, json={"message": "OK"})
-            elif request.url == CAPI_SIGNALS_URL:
+            elif request.url == CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT:
                 return httpx.Response(status_code=200, json="OK")
-            elif request.url == CAPI_METRICS_URL:
+            elif request.url == CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT:
                 return httpx.Response(status_code=200, json="OK")
 
         httpx_mock.add_callback(resp)
@@ -341,10 +404,10 @@ class TestSendSignals:
     def test_signals_with_retry(self, httpx_mock: HTTPXMock, client: CAPIClient):
         stale_token = dummy_token(exp=int(time.time()) - 3600)
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": stale_token}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": stale_token}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_SIGNALS_URL, text="OK", status_code=401
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_SIGNALS_ENDPOINT, text="OK", status_code=401
         )
         machine = MachineModel(
             machine_id="test",
@@ -363,14 +426,14 @@ class TestGetDecisions:
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": dummy_token()}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
             method="GET",
-            url=CAPI_DECISIONS_URL,
+            url=CAPI_BASE_DEV_URL + CAPI_DECISIONS_ENDPOINT,
             json={"new": [asdict(mock_signals()[0].decisions[0])], "deleted": []},
         )
 
@@ -382,27 +445,27 @@ class TestGetDecisions:
 
         assert len(requests) == 3
 
-        assert requests[0].url == CAPI_WATCHER_REGISTER_URL
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
         assert requests[0].method == "POST"
 
-        assert requests[1].url == CAPI_WATCHER_LOGIN_URL
+        assert requests[1].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
         assert requests[1].method == "POST"
 
-        assert requests[2].url == CAPI_DECISIONS_URL
+        assert requests[2].url == CAPI_BASE_DEV_URL + CAPI_DECISIONS_ENDPOINT
         assert requests[2].method == "GET"
 
     def test_get_decisions_from_registered_machine_with_valid_token(
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": dummy_token()}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
             method="GET",
-            url=CAPI_DECISIONS_URL,
+            url=CAPI_BASE_DEV_URL + CAPI_DECISIONS_ENDPOINT,
             json={"new": [asdict(mock_signals()[0].decisions[0])], "deleted": []},
         )
 
@@ -422,15 +485,15 @@ class TestGetDecisions:
     ):
         httpx_mock.add_response(
             method="POST",
-            url=CAPI_WATCHER_LOGIN_URL,
+            url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT,
             json={"token": dummy_token(exp=int(time.time()) - 3600)},
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
             method="GET",
-            url=CAPI_DECISIONS_URL,
+            url=CAPI_BASE_DEV_URL + CAPI_DECISIONS_ENDPOINT,
             json={"new": [asdict(mock_signals()[0].decisions[0])], "deleted": []},
         )
 
@@ -451,13 +514,13 @@ class TestEnroll:
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": dummy_token()}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_ENROLL_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_ENROLL_ENDPOINT, json={"message": "OK"}
         )
 
         assert client.storage.get_machine_by_id("test") is None
@@ -474,21 +537,21 @@ class TestEnroll:
 
         assert len(requests) == 6  # For each machine, 1 register, 1 login, 1 enroll
 
-        assert requests[0].url == CAPI_WATCHER_REGISTER_URL
-        assert requests[1].url == CAPI_WATCHER_LOGIN_URL
-        assert requests[2].url == CAPI_ENROLL_URL
+        assert requests[0].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT
+        assert requests[1].url == CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT
+        assert requests[2].url == CAPI_BASE_DEV_URL + CAPI_ENROLL_ENDPOINT
 
     def test_enroll_from_registered_machine_with_valid_token(
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_LOGIN_URL, json={"token": dummy_token()}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT, json={"token": dummy_token()}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_ENROLL_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_ENROLL_ENDPOINT, json={"message": "OK"}
         )
 
         assert client.storage.get_machine_by_id("test") is None
@@ -510,14 +573,14 @@ class TestEnroll:
     ):
         httpx_mock.add_response(
             method="POST",
-            url=CAPI_WATCHER_LOGIN_URL,
+            url=CAPI_BASE_DEV_URL + CAPI_WATCHER_LOGIN_ENDPOINT,
             json={"token": dummy_token(exp=int(time.time()) - 3600)},
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_WATCHER_REGISTER_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_WATCHER_REGISTER_ENDPOINT, json={"message": "OK"}
         )
         httpx_mock.add_response(
-            method="POST", url=CAPI_ENROLL_URL, json={"message": "OK"}
+            method="POST", url=CAPI_BASE_DEV_URL + CAPI_ENROLL_ENDPOINT, json={"message": "OK"}
         )
 
         assert client.storage.get_machine_by_id("test") is None
@@ -542,7 +605,7 @@ def dummy_token(exp=None):
         {
             "sub": "toto",
             "aud": "toto",
-            "iss": "https://api.crowdsec.net",
+            "iss": "https://api.dev.crowdsec.net",
             "iat": int(time.time()),
             "exp": exp,
             "cognito:username": "toto",
