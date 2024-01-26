@@ -52,12 +52,13 @@ class CAPIClientConfig:
     max_retries: int = 3
     latency_offset: int = 10
     retry_delay: int = 5
+    force_config_scenario: bool = True
 
 
 class CAPIClient:
     def __init__(self, storage: StorageInterface, config: CAPIClientConfig):
         self.storage = storage
-
+        self.force_config_scenario = config.force_config_scenario
         self.scenarios = ",".join(sorted(config.scenarios))
         self.latency_offset = config.latency_offset
         self.max_retries = config.max_retries
@@ -103,7 +104,8 @@ class CAPIClient:
 
         while machines_to_process_attempts:
             logging.info(f"attempt {attempt_count} to send signals")
-            if attempt_count > self.max_retries:
+            retry_machines_to_process_attempts = []
+            if attempt_count >= self.max_retries:
                 for machine_to_process in machines_to_process_attempts:
                     logging.error(
                         f"Machine {machine_to_process.machine_id} is marked as failing"
@@ -161,6 +163,9 @@ class CAPIClient:
 
             attempt_count += 1
             machines_to_process_attempts = retry_machines_to_process_attempts
+            if (len(retry_machines_to_process_attempts) != 0) and (attempt_count < self.max_retries):
+                logging.info( f"waiting {self.retry_delay} seconds before retrying sending signals")
+                time.sleep(self.retry_delay)
 
     def _send_signals(self, token: str, signals: SignalModel):
         for signal_batch in batched(signals, 250):
@@ -201,7 +206,6 @@ class CAPIClient:
                 logging.error(
                     f"received error {exc} while sending metrics for machine {machine.machine_id}"
                 )
-                time.sleep(self.retry_delay)
 
     def _prune_sent_signals(self):
         signals = list(
@@ -215,12 +219,13 @@ class CAPIClient:
         self.storage.delete_signals(signals)
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
+        scenarios = self.scenarios if self.force_config_scenario else machine.scenarios
         resp = self.http_client.post(
             self._get_url(CAPI_WATCHER_LOGIN_ENDPOINT),
             json={
                 "machine_id": machine.machine_id,
                 "password": machine.password,
-                "scenarios": machine.scenarios.split(","),
+                "scenarios": scenarios.split(","),
             },
         )
         try:
@@ -254,6 +259,12 @@ class CAPIClient:
 
     def _prepare_machine(self, machine: MachineModel):
         machine = self._ensure_machine_capi_registered(machine)
+        if machine.is_failing:
+            logging.error(
+                f"skipping connection for machine {machine.machine_id} as it's marked as failing"
+            )
+            return machine
+        
         machine = self._ensure_machine_capi_connected(machine)
         return machine
 
@@ -298,6 +309,11 @@ class CAPIClient:
         while machine_ids:
             for machine_id in machine_ids:
                 machine = self._prepare_machine(MachineModel(machine_id=machine_id))
+                if machine.is_failing:
+                    logging.error(
+                        f"skipping enrollment for machine {machine.machine_id} as it's marked as failing"
+                    )
+                    continue
                 try:
                     resp = self.http_client.post(
                         self.url + CAPI_ENROLL_ENDPOINT,

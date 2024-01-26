@@ -5,17 +5,19 @@ from cscapi.utils import create_signal, generate_machine_id_from_key
 client = CAPIClient(
     storage=SQLStorage(),
     config=CAPIClientConfig(
-        scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"], prod=False
+        scenarios=["pysdktest/test-01", "pysdktest/test-02"], user_agent_prefix="example", prod=True
     ),
 )
 
 # Fetch signals from your data, and convert it into a list of signals accepted by CrowdSec
 signals = [
     create_signal(
-        attacker_ip="<attacker_ip>",
-        scenario="crowdsecurity/ssh-bf",
-        created_at="2023-11-17 10:20:46 +0000",
-        machine_id=generate_machine_id_from_key("<key>asd"),
+        attacker_ip="81.81.81.81",
+        scenario="pysdktest/test-sc",
+        created_at="2024-01-19 12:12:21 +0000",
+        machine_id=generate_machine_id_from_key("myMachineId"),
+        context=[{"key":"scenario-version", "value":"1.0.0"}],
+        message="test message to see where it is written",
     )
 ]
 
@@ -25,3 +27,5 @@ client.add_signals(signals)
 # This sends all the unsent signals to the API.
 # You can chron this call to send signals periodically.
 client.send_signals()
+
+# client.enroll_machines([generate_machine_id_from_key("myMachineId")], "basicExample", "myenrollkeyigotonconsole", [])
