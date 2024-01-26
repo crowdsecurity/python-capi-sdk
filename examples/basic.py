@@ -4,7 +4,9 @@ from cscapi.utils import create_signal, generate_machine_id_from_key
 
 client = CAPIClient(
     storage=SQLStorage(),
-    config=CAPIClientConfig(scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"]),
+    config=CAPIClientConfig(
+        scenarios=["crowdsecurity/ssh-bf", "acme/http-bf"], prod=False
+    ),
 )
 
 # Fetch signals from your data, and convert it into a list of signals accepted by CrowdSec

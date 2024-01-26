@@ -1,5 +1,5 @@
 """
-This script will enroll a machine.
+This script will send a simple signal.
 """
 
 import argparse
@@ -7,6 +7,7 @@ import json
 import sys
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
+from cscapi.utils import create_signal
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -15,26 +16,30 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
 
 parser = argparse.ArgumentParser(
-    description="Script to enroll a single machine.",
+    description="Script to send a simple signal.",
     formatter_class=CustomHelpFormatter,
 )
 
 try:
     parser.add_argument("--prod", action="store_true", help="Use production mode")
-    parser.add_argument("--key", type=str, help="Enrollment key to use", required=True)
     parser.add_argument(
         "--machine_id", type=str, help="ID of the machine", required=True
     )
-    parser.add_argument("--name", type=str, help="Name of the machine", default=None)
-    parser.add_argument("--overwrite", action="store_true", help="Force overwrite")
+    parser.add_argument("--ip", type=str, help="Attacker IP", required=True)
     parser.add_argument(
-        "--tags",
+        "--created_at",
         type=str,
-        help='Json encoded list of tags. Example:\'["tag1", "tag2"]\'',
-        default=None,
+        help="Signal's creation date. Example:'2024-01-26 10:20:46+0000'",
+        default="2024-01-26 10:20:46+0000",
     )
     parser.add_argument(
-        "--scenarios",
+        "--scenario",
+        type=str,
+        help="Signal's scenario. Example: 'crowdsecurity/ssh-bf'",
+        required=True,
+    )
+    parser.add_argument(
+        "--machine_scenarios",
         type=str,
         help='Json encoded list of scenarios. Example:\'["crowdsecurity/ssh-bf", "acme/http-bf"]\'',
         default='["crowdsecurity/ssh-bf", "acme/http-bf"]',
@@ -48,30 +53,35 @@ except argparse.ArgumentError as e:
     parser.print_usage()
     sys.exit(2)
 
-tags = json.loads(args.tags) if args.tags else None
-scenarios = json.loads(args.scenarios) if args.scenarios else None
-name_message = f" '{args.name}'" if args.name else ""
+ip_message = f"\tAttacker IP: '{args.ip}'\n"
+created_at_message = f"\tCreated at: '{args.created_at}'\n"
+scenario_message = f"\tScenario: '{args.scenario}'\n"
+machine_scenarios = (
+    json.loads(args.machine_scenarios) if args.machine_scenarios else None
+)
 user_agent_message = (
     f"\tUser agent prefix:'{args.user_agent_prefix}'\n"
     if args.user_agent_prefix
     else ""
 )
-overwrite_message = "\033[1m(Force overwrite)\033[0m" if args.overwrite else ""
-tags_message = f"\tTags:{args.tags}\n" if tags else ""
-scenarios_message = f"\tScenarios:{args.scenarios}\n" if scenarios else ""
+machine_scenarios_message = (
+    f"\tMachine's scenarios:{args.machine_scenarios}\n" if machine_scenarios else ""
+)
 env_message = "\tEnv: production\n" if args.prod else "\tEnv: development\n"
 
 database = "cscapi_examples.db" if args.prod else "cscapi_examples_dev.db"
 database_message = f"\tLocal storage database: {database}\n"
 
 print(
-    f"\nEnrolling machine{name_message} with key '{args.key}' and id '{args.machine_id}' {overwrite_message}\n\n"
+    f"\nSending signal for machine '{args.machine_id}'\n\n"
     f"Details:\n"
     f"{env_message}"
-    f"{scenarios_message}"
-    f"{tags_message}"
-    f"{user_agent_message}"
+    f"{ip_message}"
+    f"{scenario_message}"
+    f"{created_at_message}"
+    f"{machine_scenarios_message}"
     f"{database_message}"
+    f"{user_agent_message}"
     f"\n\n"
 )
 
@@ -83,16 +93,21 @@ if confirmation.lower() == "n":
 client = CAPIClient(
     storage=SQLStorage(connection_string=f"sqlite:///{database}"),
     config=CAPIClientConfig(
-        scenarios=scenarios,
+        scenarios=machine_scenarios,
         prod=args.prod,
         user_agent_prefix=args.user_agent_prefix,
     ),
 )
 
-client.enroll_machines(
-    machine_ids=[args.machine_id],
-    attachment_key=args.key,
-    name=args.name,
-    overwrite=args.overwrite,
-    tags=tags if tags else [],
-)
+signals = [
+    create_signal(
+        attacker_ip=args.ip,
+        scenario=args.scenario,
+        created_at=args.created_at,
+        machine_id=args.machine_id,
+    )
+]
+
+client.add_signals(signals)
+
+client.send_signals()
