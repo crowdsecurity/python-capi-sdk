@@ -163,8 +163,12 @@ class CAPIClient:
 
             attempt_count += 1
             machines_to_process_attempts = retry_machines_to_process_attempts
-            if (len(retry_machines_to_process_attempts) != 0) and (attempt_count < self.max_retries):
-                logging.info( f"waiting {self.retry_delay} seconds before retrying sending signals")
+            if (len(retry_machines_to_process_attempts) != 0) and (
+                attempt_count < self.max_retries
+            ):
+                logging.info(
+                    f"waiting {self.retry_delay} seconds before retrying sending signals"
+                )
                 time.sleep(self.retry_delay)
 
     def _send_signals(self, token: str, signals: SignalModel):
@@ -264,7 +268,7 @@ class CAPIClient:
                 f"skipping connection for machine {machine.machine_id} as it's marked as failing"
             )
             return machine
-        
+
         machine = self._ensure_machine_capi_connected(machine)
         return machine
 

@@ -36,7 +36,7 @@ try:
     parser.add_argument(
         "--scenarios",
         type=str,
-        help='Json encoded list of scenarios. Example:\'["crowdsecurity/ssh-bf", "acme/http-bf"]\'',
+        help='Json encoded list of scenarios. Example:"[\\"crowdsecurity/ssh-bf\\", \\"acme/http-bf\\"]"',
         default='["crowdsecurity/ssh-bf", "acme/http-bf"]',
     )
     parser.add_argument(

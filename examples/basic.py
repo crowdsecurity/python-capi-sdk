@@ -5,7 +5,9 @@ from cscapi.utils import create_signal, generate_machine_id_from_key
 client = CAPIClient(
     storage=SQLStorage(),
     config=CAPIClientConfig(
-        scenarios=["pysdktest/test-01", "pysdktest/test-02"], user_agent_prefix="example", prod=True
+        scenarios=["pysdktest/test-01", "pysdktest/test-02"],
+        user_agent_prefix="example",
+        prod=True,
     ),
 )
 
@@ -16,7 +18,7 @@ signals = [
         scenario="pysdktest/test-sc",
         created_at="2024-01-19 12:12:21 +0000",
         machine_id=generate_machine_id_from_key("myMachineId"),
-        context=[{"key":"scenario-version", "value":"1.0.0"}],
+        context=[{"key": "scenario-version", "value": "1.0.0"}],
         message="test message to see where it is written",
     )
 ]
