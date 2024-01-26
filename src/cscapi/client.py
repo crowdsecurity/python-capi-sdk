@@ -286,7 +286,12 @@ class CAPIClient:
         return self.url + endpoint
 
     def enroll_machines(
-        self, machine_ids: List[str], name: str, attachment_key: str, tags: List[str]
+        self,
+        machine_ids: List[str],
+        name: str,
+        attachment_key: str,
+        tags: List[str],
+        overwrite: bool = False,
     ):
         attempt_count = 0
         next_machine_ids: List[str] = []
@@ -298,7 +303,7 @@ class CAPIClient:
                         self.url + CAPI_ENROLL_ENDPOINT,
                         json={
                             "name": name,
-                            "overwrite": False,
+                            "overwrite": overwrite,
                             "attachment_key": attachment_key,
                             "tags": tags,
                         },
