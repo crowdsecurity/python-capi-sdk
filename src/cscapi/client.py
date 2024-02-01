@@ -52,7 +52,6 @@ class CAPIClientConfig:
     max_retries: int = 3
     latency_offset: int = 10
     retry_delay: int = 5
-    force_config_scenario: bool = True
 
 
 def _group_signals_by_machine_id(
@@ -67,7 +66,6 @@ def _group_signals_by_machine_id(
 class CAPIClient:
     def __init__(self, storage: StorageInterface, config: CAPIClientConfig):
         self.storage = storage
-        self.force_config_scenario = config.force_config_scenario
         self.scenarios = ",".join(sorted(config.scenarios))
         self.latency_offset = config.latency_offset
         self.max_retries = config.max_retries
@@ -85,9 +83,6 @@ class CAPIClient:
         stored_scenarios = machine.scenarios
         if len(stored_scenarios) == 0:
             return False
-
-        if not self.force_config_scenario:
-            return True
 
         return current_scenarios == stored_scenarios
 
@@ -234,9 +229,7 @@ class CAPIClient:
         self.storage.delete_signals(signals)
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
-        machine.scenarios = (
-            self.scenarios if self.force_config_scenario else machine.scenarios
-        )
+        machine.scenarios = self.scenarios
         resp = self.http_client.post(
             self._get_url(CAPI_WATCHER_LOGIN_ENDPOINT),
             json={
