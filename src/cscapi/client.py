@@ -55,6 +55,15 @@ class CAPIClientConfig:
     force_config_scenario: bool = True
 
 
+def _group_signals_by_machine_id(
+    signals: Iterable[SignalModel],
+) -> Dict[str, List[SignalModel]]:
+    signals_by_machineid: Dict[str, List[SignalModel]] = defaultdict(list)
+    for signal in signals:
+        signals_by_machineid[signal.machine_id].append(signal)
+    return signals_by_machineid
+
+
 class CAPIClient:
     def __init__(self, storage: StorageInterface, config: CAPIClientConfig):
         self.storage = storage
@@ -71,23 +80,26 @@ class CAPIClient:
             {"User-Agent": f"{config.user_agent_prefix}-capi-py-sdk/{__version__}"}
         )
 
+    def has_valid_scenarios(self, machine: MachineModel) -> bool:
+        current_scenarios = self.scenarios
+        stored_scenarios = machine.scenarios
+        if len(stored_scenarios) == 0:
+            return False
+
+        if not self.force_config_scenario:
+            return True
+
+        return current_scenarios == stored_scenarios
+
     def add_signals(self, signals: List[SignalModel]):
         for signal in signals:
             self.storage.update_or_create_signal(signal)
 
     def send_signals(self, prune_after_send: bool = True):
-        unsent_signals_by_machineid = self._group_signals_by_machine_id(
+        unsent_signals_by_machineid = _group_signals_by_machine_id(
             filter(lambda signal: not signal.sent, self.storage.get_all_signals())
         )
         self._send_signals_by_machine_id(unsent_signals_by_machineid, prune_after_send)
-
-    def _group_signals_by_machine_id(
-        self, signals: Iterable[SignalModel]
-    ) -> Dict[str, List[SignalModel]]:
-        signals_by_machineid: Dict[str, List[SignalModel]] = defaultdict(list)
-        for signal in signals:
-            signals_by_machineid[signal.machine_id].append(signal)
-        return signals_by_machineid
 
     def _send_signals_by_machine_id(
         self,
@@ -99,12 +111,11 @@ class CAPIClient:
             for machine_id in signals_by_machineid.keys()
         ]
 
-        retry_machines_to_process_attempts: List[MachineModel] = []
         attempt_count = 0
 
         while machines_to_process_attempts:
             logging.info(f"attempt {attempt_count} to send signals")
-            retry_machines_to_process_attempts = []
+            retry_machines_to_process_attempts: List[MachineModel] = []
             if attempt_count >= self.max_retries:
                 for machine_to_process in machines_to_process_attempts:
                     logging.error(
@@ -223,13 +234,15 @@ class CAPIClient:
         self.storage.delete_signals(signals)
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
-        scenarios = self.scenarios if self.force_config_scenario else machine.scenarios
+        machine.scenarios = (
+            self.scenarios if self.force_config_scenario else machine.scenarios
+        )
         resp = self.http_client.post(
             self._get_url(CAPI_WATCHER_LOGIN_ENDPOINT),
             json={
                 "machine_id": machine.machine_id,
                 "password": machine.password,
-                "scenarios": scenarios.split(","),
+                "scenarios": machine.scenarios.split(","),
             },
         )
         try:
@@ -279,7 +292,9 @@ class CAPIClient:
         return retrieved_machine
 
     def _ensure_machine_capi_connected(self, machine: MachineModel) -> MachineModel:
-        if not has_valid_token(machine, self.latency_offset):
+        if not has_valid_token(
+            machine, self.latency_offset
+        ) or not self.has_valid_scenarios(machine):
             return self._refresh_machine_token(machine)
         return machine
 

@@ -7,6 +7,7 @@ import json
 import sys
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
+from cscapi.utils import generate_machine_id_from_key
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -23,7 +24,10 @@ try:
     parser.add_argument("--prod", action="store_true", help="Use production mode")
     parser.add_argument("--key", type=str, help="Enrollment key to use", required=True)
     parser.add_argument(
-        "--machine_id", type=str, help="ID of the machine", required=True
+        "--human_machine_id",
+        type=str,
+        help="Human readable machine identifier. Will be converted in CrowdSec ID. Example: 'myMachineId'",
+        required=True,
     )
     parser.add_argument("--name", type=str, help="Name of the machine", default=None)
     parser.add_argument("--overwrite", action="store_true", help="Force overwrite")
@@ -42,6 +46,12 @@ try:
     parser.add_argument(
         "--user_agent_prefix", type=str, help="User agent prefix", default=None
     )
+    parser.add_argument(
+        "--database",
+        type=str,
+        help="Local database name. Example: cscapi.db",
+        default=None,
+    )
     args = parser.parse_args()
 except argparse.ArgumentError as e:
     print(e)
@@ -50,6 +60,8 @@ except argparse.ArgumentError as e:
 
 tags = json.loads(args.tags) if args.tags else None
 scenarios = json.loads(args.scenarios) if args.scenarios else None
+machine_id = generate_machine_id_from_key(args.human_machine_id)
+machine_id_message = f"\tMachine ID: '{machine_id}'\n"
 name_message = f" '{args.name}'" if args.name else ""
 user_agent_message = (
     f"\tUser agent prefix:'{args.user_agent_prefix}'\n"
@@ -61,13 +73,20 @@ tags_message = f"\tTags:{args.tags}\n" if tags else ""
 scenarios_message = f"\tScenarios:{args.scenarios}\n" if scenarios else ""
 env_message = "\tEnv: production\n" if args.prod else "\tEnv: development\n"
 
-database = "cscapi_examples.db" if args.prod else "cscapi_examples_dev.db"
+database = (
+    args.database
+    if args.database
+    else "cscapi_examples_prod.db"
+    if args.prod
+    else "cscapi_examples_dev.db"
+)
 database_message = f"\tLocal storage database: {database}\n"
 
 print(
-    f"\nEnrolling machine{name_message} with key '{args.key}' and id '{args.machine_id}' {overwrite_message}\n\n"
+    f"\nEnrolling machine{name_message} with key '{args.key}' {overwrite_message}\n\n"
     f"Details:\n"
     f"{env_message}"
+    f"{machine_id_message}"
     f"{scenarios_message}"
     f"{tags_message}"
     f"{user_agent_message}"
@@ -90,7 +109,7 @@ client = CAPIClient(
 )
 
 client.enroll_machines(
-    machine_ids=[args.machine_id],
+    machine_ids=[machine_id],
     attachment_key=args.key,
     name=args.name,
     overwrite=args.overwrite,

@@ -8,6 +8,7 @@ import sys
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal
+from cscapi.utils import generate_machine_id_from_key
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -23,7 +24,10 @@ parser = argparse.ArgumentParser(
 try:
     parser.add_argument("--prod", action="store_true", help="Use production mode")
     parser.add_argument(
-        "--machine_id", type=str, help="ID of the machine", required=True
+        "--human_machine_id",
+        type=str,
+        help="Human readable machine identifier. Will be converted in CrowdSec ID. Example: 'myMachineId'",
+        required=True,
     )
     parser.add_argument("--ip", type=str, help="Attacker IP", required=True)
     parser.add_argument(
@@ -47,12 +51,19 @@ try:
     parser.add_argument(
         "--user_agent_prefix", type=str, help="User agent prefix", default=None
     )
+    parser.add_argument(
+        "--database",
+        type=str,
+        help="Local database name. Example: cscapi.db",
+        default=None,
+    )
     args = parser.parse_args()
 except argparse.ArgumentError as e:
     print(e)
     parser.print_usage()
     sys.exit(2)
-
+machine_id = generate_machine_id_from_key(args.human_machine_id)
+machine_id_message = f"machine ID: '{machine_id}'\n"
 ip_message = f"\tAttacker IP: '{args.ip}'\n"
 created_at_message = f"\tCreated at: '{args.created_at}'\n"
 scenario_message = f"\tScenario: '{args.scenario}'\n"
@@ -69,11 +80,17 @@ machine_scenarios_message = (
 )
 env_message = "\tEnv: production\n" if args.prod else "\tEnv: development\n"
 
-database = "cscapi_examples.db" if args.prod else "cscapi_examples_dev.db"
+database = (
+    args.database
+    if args.database
+    else "cscapi_examples_prod.db"
+    if args.prod
+    else "cscapi_examples_dev.db"
+)
 database_message = f"\tLocal storage database: {database}\n"
 
 print(
-    f"\nSending signal for machine '{args.machine_id}'\n\n"
+    f"\nSending signal for '{machine_id_message}'\n\n"
     f"Details:\n"
     f"{env_message}"
     f"{ip_message}"
@@ -104,7 +121,7 @@ signals = [
         attacker_ip=args.ip,
         scenario=args.scenario,
         created_at=args.created_at,
-        machine_id=args.machine_id,
+        machine_id=machine_id,
     )
 ]
 

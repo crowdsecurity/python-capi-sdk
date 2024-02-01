@@ -5,9 +5,9 @@ from cscapi.utils import create_signal, generate_machine_id_from_key
 client = CAPIClient(
     storage=SQLStorage(),
     config=CAPIClientConfig(
-        scenarios=["pysdktest/test-01", "pysdktest/test-02"],
+        scenarios=["acme/http-bf", "crowdsec/ssh-bf"],
         user_agent_prefix="example",
-        prod=True,
+        prod=False,
     ),
 )
 
@@ -17,7 +17,7 @@ signals = [
         attacker_ip="81.81.81.81",
         scenario="pysdktest/test-sc",
         created_at="2024-01-19 12:12:21 +0000",
-        machine_id=generate_machine_id_from_key("myMachineId"),
+        machine_id=generate_machine_id_from_key("myMachineKeyIdentifier"),
         context=[{"key": "scenario-version", "value": "1.0.0"}],
         message="test message to see where it is written",
     )
