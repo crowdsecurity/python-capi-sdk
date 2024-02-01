@@ -12,7 +12,7 @@ from cscapi.utils import generate_machine_id_from_key
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
-    def __init__(self, prog, indent_increment=2, max_help_position=36, width=None):
+    def __init__(self, prog, indent_increment=2, max_help_position=48, width=None):
         super().__init__(prog, indent_increment, max_help_position, width)
 
 
@@ -57,19 +57,28 @@ try:
         help="Local database name. Example: cscapi.db",
         default=None,
     )
+    parser.add_argument(
+        "--context",
+        type=str,
+        help='Json encoded context. Example:"[{\\"key\\":\\"key1\\", '
+        '\\"value\\":\\"value1\\"}, {\\"key\\":\\"key2\\", \\"value\\":\\"value2\\"}]"',
+        default=None,
+    )
     args = parser.parse_args()
 except argparse.ArgumentError as e:
     print(e)
     parser.print_usage()
     sys.exit(2)
 machine_id = generate_machine_id_from_key(args.human_machine_id)
-machine_id_message = f"machine ID: '{machine_id}'\n"
+machine_id_message = f"machine ID: '{machine_id}'"
 ip_message = f"\tAttacker IP: '{args.ip}'\n"
 created_at_message = f"\tCreated at: '{args.created_at}'\n"
 scenario_message = f"\tScenario: '{args.scenario}'\n"
+context_message = f"\tContext:{args.context}\n" if args.context else ""
 machine_scenarios = (
     json.loads(args.machine_scenarios) if args.machine_scenarios else None
 )
+context = json.loads(args.context) if args.context else None
 user_agent_message = (
     f"\tUser agent prefix:'{args.user_agent_prefix}'\n"
     if args.user_agent_prefix
@@ -88,12 +97,13 @@ database = (
 database_message = f"\tLocal storage database: {database}\n"
 
 print(
-    f"\nSending signal for '{machine_id_message}'\n\n"
+    f"\nSending signal for {machine_id_message}\n\n"
     f"Details:\n"
     f"{env_message}"
     f"{ip_message}"
     f"{scenario_message}"
     f"{created_at_message}"
+    f"{context_message}"
     f"{machine_scenarios_message}"
     f"{database_message}"
     f"{user_agent_message}"
@@ -120,6 +130,7 @@ signals = [
         scenario=args.scenario,
         created_at=args.created_at,
         machine_id=machine_id,
+        context=context if context else [],
     )
 ]
 

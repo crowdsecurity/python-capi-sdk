@@ -11,7 +11,7 @@ from cscapi.utils import generate_machine_id_from_key
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
-    def __init__(self, prog, indent_increment=2, max_help_position=36, width=None):
+    def __init__(self, prog, indent_increment=2, max_help_position=48, width=None):
         super().__init__(prog, indent_increment, max_help_position, width)
 
 
