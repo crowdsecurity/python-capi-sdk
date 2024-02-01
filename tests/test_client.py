@@ -114,7 +114,7 @@ def client(storage):
         storage,
         CAPIClientConfig(
             scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
-            max_retries=0,
+            max_retries=1,
             retry_delay=0,
         ),
     )
