@@ -30,7 +30,7 @@ jobs:
 
     - name: Lint check
       run: |
-        black --check ./
+        black --check -v ./
 
     - name: Tests
       run: |
