@@ -7,7 +7,7 @@
 
 ## Usage
 
-See the [examples](examples) directory for some basic usage examples.
+See the [examples](https://github.com/crowdsecurity/python-capi-sdk/blob/main/examples) directory for some basic usage examples.
 
 ## Installation
 
