@@ -21,10 +21,22 @@ signals = [
         context=[{"key": "scenario-version", "value": "1.0.0"}],
         message="test message to see where it is written",
         decisions=[
-            {"origin": "crowdsec", "duration": "1h", "scenario": "crowdsec/ssh-bf", "scope": "ip", "type": "ban",
-             "value": "81.81.81.81"},
-            {"origin": "pysdk", "duration": "2h", "scenario": "crowdsec/ssh-bf", "scope": "ip", "type": "ban",
-             "value": "81.81.81.81"},
+            {
+                "origin": "crowdsec",
+                "duration": "1h",
+                "scenario": "crowdsec/ssh-bf",
+                "scope": "ip",
+                "type": "ban",
+                "value": "81.81.81.81",
+            },
+            {
+                "origin": "pysdk",
+                "duration": "2h",
+                "scenario": "crowdsec/ssh-bf",
+                "scope": "ip",
+                "type": "ban",
+                "value": "81.81.81.81",
+            },
         ],
     )
 ]

@@ -12,7 +12,7 @@ from sqlalchemy import (
     create_engine,
     delete,
     update,
-    event
+    event,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -26,10 +26,10 @@ from sqlalchemy.engine import Engine
 from cscapi import storage
 
 
-'''
+"""
 By default, foreign key constraints are disabled in SQLite.
 @see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#foreign-key-support
-'''
+"""
 
 
 @event.listens_for(Engine, "connect")
@@ -86,7 +86,9 @@ class SourceDBModel(Base):
     value = Column(TEXT)
     as_name = Column(TEXT)
     longitude = Column(Float)
-    signal_id = Column(Integer, ForeignKey("signal_models.alert_id", ondelete="CASCADE"))
+    signal_id = Column(
+        Integer, ForeignKey("signal_models.alert_id", ondelete="CASCADE")
+    )
 
 
 class ContextDBModel(Base):
