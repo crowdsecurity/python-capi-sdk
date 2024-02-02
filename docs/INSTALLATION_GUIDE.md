@@ -7,3 +7,10 @@
 ## Requirements
 
 - Python >= 3.9
+
+
+## Installation
+
+```bash
+pip install cscapi
+```
