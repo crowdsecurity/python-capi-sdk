@@ -12,6 +12,7 @@ from sqlalchemy import (
     create_engine,
     delete,
     update,
+    event
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -21,7 +22,21 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
+from sqlalchemy.engine import Engine
 from cscapi import storage
+
+
+'''
+By default, foreign key constraints are disabled in SQLite.
+@see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#foreign-key-support
+'''
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class Base(DeclarativeBase):
@@ -33,7 +48,7 @@ class MachineDBModel(Base):
     __tablename__ = "machine_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    machine_id = Column(TEXT)
+    machine_id = Column(TEXT, unique=True)
     token = Column(TEXT)
     password = Column(TEXT)
     scenarios = Column(TEXT)
@@ -54,7 +69,7 @@ class DecisionDBModel(Base):
     type = Column(TEXT)
     value = Column(TEXT)
     signal_id: Mapped[int] = mapped_column(
-        "signal_id", ForeignKey("signal_models.alert_id")
+        "signal_id", ForeignKey("signal_models.alert_id", ondelete="CASCADE")
     )
 
 
@@ -80,7 +95,7 @@ class ContextDBModel(Base):
     value = Column(TEXT)
     key = Column(TEXT)
     signal_id: Mapped[int] = mapped_column(
-        "signal_id", ForeignKey("signal_models.alert_id")
+        "signal_id", ForeignKey("signal_models.alert_id", ondelete="CASCADE")
     )
 
 
@@ -215,9 +230,11 @@ class SQLStorage(storage.StorageInterface):
             SignalDBModel.alert_id.in_((signal.alert_id for signal in signals))
         )
         self.session.execute(stmt)
+        self.session.commit()
 
     def delete_machines(self, machines: List[storage.MachineModel]):
         stmt = delete(MachineDBModel).where(
-            MachineDBModel.machine_id in ([machine.machine_id for machine in machines])
+            MachineDBModel.machine_id.in_((machine.machine_id for machine in machines))
         )
         self.session.execute(stmt)
+        self.session.commit()
