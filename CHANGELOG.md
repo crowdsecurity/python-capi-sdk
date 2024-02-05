@@ -10,6 +10,6 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
-## [0.0.1](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.0.1) - 2024-02-??
+## [0.0.1](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.0.1) - 2024-02-06
 
 - Initial release
