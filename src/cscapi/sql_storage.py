@@ -23,6 +23,7 @@ from sqlalchemy.orm import (
 )
 
 from sqlalchemy.engine import Engine
+from sqlite3 import Connection as SQLiteConnection
 from cscapi import storage
 
 
@@ -34,9 +35,10 @@ By default, foreign key constraints are disabled in SQLite.
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+    if isinstance(dbapi_connection, SQLiteConnection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 class Base(DeclarativeBase):
