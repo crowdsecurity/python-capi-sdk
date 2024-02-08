@@ -1,29 +1,23 @@
-name: Create Release
-# example: gh workflow run release.yml -f tag_name=v1.1.4 -f draft=true
+name: Create and publish release
+# example: gh workflow run release.yml -f tag_name=v1.1.4
 on:
   workflow_dispatch:
-    branches:
-      - main
     inputs:
       tag_name:
         type: string
         required: true
         description: Tag name
-      draft:
+      publish-on-pypi:
         type: boolean
-        description: Draft release
-        default: false
-      prerelease:
-        type: boolean
-        description: Pre release
-        default: false
+        description: Publish on PyPI
+        default: true
       first-release:
         type: boolean
         description: First release
         default: false
 
 jobs:
-  prepare-release:
+  create-release:
     name: Create release
     runs-on: ubuntu-latest
     permissions:
@@ -44,13 +38,13 @@ jobs:
           echo "VERSION_NUMBER=$(echo ${{ github.event.inputs.tag_name }} | sed 's/v//g' )" >> $GITHUB_ENV
 
       - name: Clone sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Check version ${{ env.VERSION_NUMBER }} consistency in files
         # CHANGELOG.md
         run: |
-          
           # Check top ## [VERSION_NUMBER](GITHUB_URL/releases/tag/vVERSION_NUMBER) - yyyy-mm-dd in CHANGELOG.md
+          # Example: ## [0.0.2](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.0.2) - 2024-02-07
           CURRENT_DATE=$(date +'%Y-%m-%d')
           echo $CURRENT_DATE
           CHANGELOG_VERSION=$(grep -o -E "## \[(.*)\].* - $CURRENT_DATE"  CHANGELOG.md | head -1 | sed 's/ //g')
@@ -60,10 +54,11 @@ jobs:
               echo "CHANGELOG VERSION OK"
           else
               echo "CHANGELOG VERSION KO"
+              echo $CHANGELOG_VERSION
               exit 1
           fi
-          
           # Check top [_Compare with previous release_](GITHUB_URL/compare/vLAST_TAG...vVERSION_NUMBER) in CHANGELOG.md
+          # Example: [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.0.1...v0.0.2)
           if [[ ${{ github.event.inputs.first-release }} != "true" ]]
           then
             COMPARISON=$(grep -oP "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/\K(.*)$" CHANGELOG.md | head -1)
@@ -80,7 +75,7 @@ jobs:
           fi
 
       - name: Create Tag ${{ github.event.inputs.tag_name }}
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
           script: |
@@ -103,5 +98,31 @@ jobs:
           body_path: CHANGELOG.txt
           name: ${{ env.VERSION_NUMBER }}
           tag_name: ${{ github.event.inputs.tag_name }}
-          draft: ${{ github.event.inputs.draft }}
-          prerelease: ${{ github.event.inputs.prerelease }}
+
+
+  publish-on-pypi:
+
+    name: Publish on PyPI
+    runs-on: ubuntu-latest
+    if: success() && github.event.inputs.publish-on-pypi == 'true'
+    needs: [ create-release ]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+      - name: Build package
+        run: python -m build
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
