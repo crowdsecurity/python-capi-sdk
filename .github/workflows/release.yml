@@ -104,12 +104,6 @@ jobs:
 
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/cscapi
-    permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
-      id-token: write
     if: success() && github.event.inputs.publish-to-pypi == 'true'
     needs: [ create-release ]
 
@@ -129,3 +123,6 @@ jobs:
         run: python -m build
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
