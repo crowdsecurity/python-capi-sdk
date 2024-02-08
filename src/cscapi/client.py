@@ -9,9 +9,8 @@ from typing import Dict, Iterable, List
 
 import httpx
 import jwt
-from more_itertools import batched
-
 from cscapi.storage import MachineModel, ReceivedDecision, SignalModel, StorageInterface
+from more_itertools import batched
 
 __version__ = metadata.version("cscapi").split("+")[0]
 
@@ -78,23 +77,30 @@ class CAPIClient:
             {"User-Agent": f"{config.user_agent_prefix}-capi-py-sdk/{__version__}"}
         )
 
-    def has_valid_scenarios(self, machine: MachineModel) -> bool:
-        current_scenarios = self.scenarios
-        stored_scenarios = machine.scenarios
-        if len(stored_scenarios) == 0:
-            return False
-
-        return current_scenarios == stored_scenarios
-
     def add_signals(self, signals: List[SignalModel]):
         for signal in signals:
             self.storage.update_or_create_signal(signal)
+
+    def prune_failing_machines_signals(self):
+        signals = self.storage.get_all_signals()
+        for machine_id, signals in _group_signals_by_machine_id(signals).items():
+            machine = self.storage.get_machine_by_id(machine_id)
+            if machine.is_failing:
+                self.storage.delete_signals(signals)
 
     def send_signals(self, prune_after_send: bool = True):
         unsent_signals_by_machineid = _group_signals_by_machine_id(
             filter(lambda signal: not signal.sent, self.storage.get_all_signals())
         )
         self._send_signals_by_machine_id(unsent_signals_by_machineid, prune_after_send)
+
+    def _has_valid_scenarios(self, machine: MachineModel) -> bool:
+        current_scenarios = self.scenarios
+        stored_scenarios = machine.scenarios
+        if len(stored_scenarios) == 0:
+            return False
+
+        return current_scenarios == stored_scenarios
 
     def _send_signals_by_machine_id(
         self,
@@ -287,7 +293,7 @@ class CAPIClient:
     def _ensure_machine_capi_connected(self, machine: MachineModel) -> MachineModel:
         if not has_valid_token(
             machine, self.latency_offset
-        ) or not self.has_valid_scenarios(machine):
+        ) or not self._has_valid_scenarios(machine):
             return self._refresh_machine_token(machine)
         return machine
 
