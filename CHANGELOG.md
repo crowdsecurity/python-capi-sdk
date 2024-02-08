@@ -11,7 +11,7 @@ functions provided by the `src/cscapi` folder.
 --- 
 
 
-## [0.1.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.1.0) - 2024-02-??
+## [0.1.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.1.0) - 2024-02-08
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.0.2...v0.1.0)
 
 ### Changed
