@@ -7,9 +7,9 @@ on:
         type: string
         required: true
         description: Tag name
-      publish-on-pypi:
+      publish-to-pypi:
         type: boolean
-        description: Publish on PyPI
+        description: Publish to PyPI
         default: true
       first-release:
         type: boolean
@@ -102,9 +102,15 @@ jobs:
 
   publish-on-pypi:
 
-    name: Publish on PyPI
+    name: Publish to PyPI
     runs-on: ubuntu-latest
-    if: success() && github.event.inputs.publish-on-pypi == 'true'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/cscapi
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    if: success() && github.event.inputs.publish-to-pypi == 'true'
     needs: [ create-release ]
 
     steps:
@@ -121,8 +127,5 @@ jobs:
           pip install build
       - name: Build package
         run: python -m build
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
