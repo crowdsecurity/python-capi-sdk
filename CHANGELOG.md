@@ -10,7 +10,22 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
-## [0.0.2](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v1.1.0) - 2024-02-07
+
+## [0.1.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.1.0) - 2024-02-??
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.0.2...v0.1.0)
+
+### Changed
+
+- **Breaking change**: Change method name `CAPIClient::has_valid_scenarios` to `CAPIClient::_has_valid_scenarios`
+
+### Added
+
+- Add `CAPIClient::prune_failing_machines_signals` method for deleting signals from failing machines
+
+
+---
+
+## [0.0.2](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.0.2) - 2024-02-07
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.0.1...v0.0.2)
 
 
