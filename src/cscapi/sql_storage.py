@@ -8,7 +8,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
-    TEXT,
+    String,
     create_engine,
     delete,
     update,
@@ -50,10 +50,10 @@ class MachineDBModel(Base):
     __tablename__ = "machine_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    machine_id = Column(TEXT, unique=True)
-    token = Column(TEXT)
-    password = Column(TEXT)
-    scenarios = Column(TEXT)
+    machine_id = Column(String(512), unique=True)
+    token = Column(String(512))
+    password = Column(String(512))
+    scenarios = Column(String(512))
     is_failing = Column(Boolean, default=False)
 
 
@@ -61,15 +61,15 @@ class DecisionDBModel(Base):
     __tablename__ = "decision_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    duration = Column(TEXT)
-    uuid = Column(TEXT)
-    scenario = Column(TEXT)
-    origin = Column(TEXT)
-    scope = Column(TEXT)
+    duration = Column(String(512))
+    uuid = Column(String(512))
+    scenario = Column(String(512))
+    origin = Column(String(512))
+    scope = Column(String(512))
     simulated = Column(Boolean)
-    until = Column(TEXT)
-    type = Column(TEXT)
-    value = Column(TEXT)
+    until = Column(String(512))
+    type = Column(String(512))
+    value = Column(String(512))
     signal_id: Mapped[int] = mapped_column(
         "signal_id", ForeignKey("signal_models.alert_id", ondelete="CASCADE")
     )
@@ -79,14 +79,14 @@ class SourceDBModel(Base):
     __tablename__ = "source_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    scope = Column(TEXT)
-    ip = Column(TEXT)
+    scope = Column(String(512))
+    ip = Column(String(512))
     latitude = Column(Float)
-    as_number = Column(TEXT)
-    range = Column(TEXT)
-    cn = Column(TEXT)
-    value = Column(TEXT)
-    as_name = Column(TEXT)
+    as_number = Column(String(512))
+    range = Column(String(512))
+    cn = Column(String(512))
+    value = Column(String(512))
+    as_name = Column(String(512))
     longitude = Column(Float)
     signal_id = Column(
         Integer, ForeignKey("signal_models.alert_id", ondelete="CASCADE")
@@ -97,8 +97,8 @@ class ContextDBModel(Base):
     __tablename__ = "context_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    value = Column(TEXT)
-    key = Column(TEXT)
+    value = Column(String(512))
+    key = Column(String(512))
     signal_id: Mapped[int] = mapped_column(
         "signal_id", ForeignKey("signal_models.alert_id", ondelete="CASCADE")
     )
@@ -108,16 +108,16 @@ class SignalDBModel(Base):
     __tablename__ = "signal_models"
 
     alert_id = Column(Integer, primary_key=True, autoincrement=True)
-    created_at = Column(TEXT)
-    machine_id = Column(TEXT)
-    scenario_version = Column(TEXT, nullable=True)
-    message = Column(TEXT, nullable=True)
-    uuid = Column(TEXT)
-    start_at = Column(TEXT, nullable=True)
-    scenario_trust = Column(TEXT, nullable=True)
-    scenario_hash = Column(TEXT, nullable=True)
-    scenario = Column(TEXT, nullable=True)
-    stop_at = Column(TEXT, nullable=True)
+    created_at = Column(String(512))
+    machine_id = Column(String(512))
+    scenario_version = Column(String(512), nullable=True)
+    message = Column(String(512), nullable=True)
+    uuid = Column(String(512))
+    start_at = Column(String(512), nullable=True)
+    scenario_trust = Column(String(512), nullable=True)
+    scenario_hash = Column(String(512), nullable=True)
+    scenario = Column(String(512), nullable=True)
+    stop_at = Column(String(512), nullable=True)
     sent = Column(Boolean, default=False)
 
     context: Mapped[List["ContextDBModel"]] = relationship(
