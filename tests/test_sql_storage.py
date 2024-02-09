@@ -12,16 +12,55 @@ from cscapi.sql_storage import (
 )
 from cscapi.storage import MachineModel, SourceModel
 
+from sqlalchemy import (
+    create_engine,
+)
+from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy.pool import NullPool
+
 from .test_client import mock_signals
 
 
 class TestSQLStorage(TestCase):
     def setUp(self) -> None:
         self.db_path = f"{str(int(time.time()))}.db"
-        db_uri = f"sqlite:///{self.db_path}"
+        # Use .env file to modify variables
+        engine_type = (
+            os.getenv("TEST_SQL_ENGINE") if os.getenv("TEST_SQL_ENGINE") else "sqlite"
+        )
+        if engine_type == "sqlite":
+            db_uri = f"sqlite:///{self.db_path}"
+        elif engine_type == "postgres":
+            db_uri = f"{os.getenv('TEST_POSTGRESQL_URL')}{self.db_path}"
+        elif engine_type == "mysql":
+            db_uri = f"{os.getenv('TEST_MYSQL_URL')}{self.db_path}"
+        elif engine_type == "mariadb":
+            db_uri = f"{os.getenv('TEST_MARIADB_URL')}{self.db_path}"
+        else:
+            raise ValueError(f"Unknown engine type: {engine_type}")
+        if not database_exists(db_uri):
+            create_database(db_uri)
+
         self.storage: SQLStorage = SQLStorage(db_uri)
+        self.db_uri = db_uri
+        print(f"Using {engine_type} engine with {db_uri}")
 
     def tearDown(self) -> None:
+        # postgresql, mysql, mariadb
+        if database_exists(self.db_uri):
+            if self.storage.session:
+                self.storage.session.close()
+            engine = create_engine(self.db_uri, poolclass=NullPool)
+            conn = engine.connect()
+            try:
+                drop_database(self.db_uri)
+            except Exception as e:
+                print(f"Error occurred while dropping the database: {e}")
+
+            conn.close()
+            engine.dispose()
+
+        # sqlite
         try:
             os.remove(self.db_path)
         except:

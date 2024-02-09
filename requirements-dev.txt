@@ -2,4 +2,9 @@ black
 pytest
 pytest-dotenv
 pytest-httpx
+pytest-timeout
+sqlalchemy-utils
+mysql-connector-python
+pymysql
+pg8000
 
