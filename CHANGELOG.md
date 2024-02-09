@@ -10,6 +10,16 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.2.1](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.2.1) - 2024-02-09
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.2.0...v0.2.1)
+
+
+### Fixed
+
+- Decrease `machine_id` database length to 128 characters for Mysql compatibility ([#17](https://github.com/crowdsecurity/python-capi-sdk/pull/17)) and ([#18](https://github.com/crowdsecurity/python-capi-sdk/pull/18))
+
+---
+
 ## [0.2.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.2.0) - 2024-02-09
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.1.0...v0.2.0)
 
