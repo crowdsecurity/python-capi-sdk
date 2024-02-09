@@ -51,7 +51,7 @@ class MachineDBModel(Base):
     __tablename__ = "machine_models"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    machine_id = Column(String(256), unique=True)
+    machine_id = Column(String(191), unique=True)
     token = Column(TEXT)
     password = Column(TEXT)
     scenarios = Column(TEXT)
@@ -110,7 +110,7 @@ class SignalDBModel(Base):
 
     alert_id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(TEXT)
-    machine_id = Column(String(256))
+    machine_id = Column(String(191))
     scenario_version = Column(TEXT, nullable=True)
     message = Column(TEXT, nullable=True)
     uuid = Column(TEXT)
