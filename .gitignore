@@ -145,3 +145,6 @@ src/cscapi/_version.py
 
 #vscode
 .vscode
+
+#ddev
+.ddev
