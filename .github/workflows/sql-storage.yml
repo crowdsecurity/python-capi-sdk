@@ -1,0 +1,73 @@
+name: Sql storage tests
+
+on:
+  push:
+    branches: [ main, feat/add-test-for-sql-database-types ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+jobs:
+  sql-tests:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+        sql-engine: ["sqlite", "mysql:5.5", "mysql:5.7", "mysql:8.0", "postgres:9", "postgres:16", "mariadb:10.0", "mariadb:10.8"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set engine code
+      run: echo "ENGINE_CODE=$(echo ${{ matrix.sql-engine }} | sed 's/:.*//')" >> $GITHUB_ENV
+
+    - name: Install DDEV
+      if: ${{ matrix.sql-engine != 'sqlite' }}
+      run: |
+        # @see https://ddev.readthedocs.io/en/stable/#installationupgrade-script-linux-and-macos-armarm64-and-amd64-architectures
+        curl -fsSL https://apt.fury.io/drud/gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/ddev.gpg > /dev/null
+        echo "deb [signed-by=/etc/apt/trusted.gpg.d/ddev.gpg] https://apt.fury.io/drud/ * *" | sudo tee /etc/apt/sources.list.d/ddev.list
+        sudo apt-get -q update
+        sudo apt-get -q -y install libnss3-tools ddev
+        mkcert -install
+        ddev config global --instrumentation-opt-in=false --omit-containers=ddev-ssh-agent
+
+    - name: Create DDEV project
+      if: ${{ matrix.sql-engine != 'sqlite' }}
+      run: |
+        ddev config --project-type=python --database ${{ matrix.sql-engine }} --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm --host-db-port 5432
+        ddev start
+
+    - name: Grant privileges
+      if: contains(fromJson('["mysql","mariadb"]'),env.ENGINE_CODE)
+      run: |
+        ddev mysql -uroot -proot -e "GRANT ALL PRIVILEGES ON *.* to 'db'@'%';"   
+
+    - name: Set .env variable
+      run: |
+        echo "TEST_SQL_ENGINE=${{ env.ENGINE_CODE }}" > .env
+
+    - name: Install setuptools
+      if: contains(fromJson('["3.12"]'),matrix.python-version)
+      run: |
+        python -m pip install --upgrade pip setuptools wheel    
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python setup.py install
+        python -m pip install -r requirements-dev.txt
+
+    - name: Tests
+      run: |
+        python -m pytest tests/test_sql_storage.py -s
