@@ -10,6 +10,15 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.2.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.2.0) - 2024-02-09
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.1.0...v0.2.0)
+
+
+### Changed
+
+- Update `create_signal` function to accept datetime object for the `created_at` argument ([#16](https://github.com/crowdsecurity/python-capi-sdk/pull/16))
+
+---
 
 ## [0.1.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.1.0) - 2024-02-08
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.0.2...v0.1.0)
@@ -20,7 +29,7 @@ functions provided by the `src/cscapi` folder.
 
 ### Added
 
-- Add `CAPIClient::prune_failing_machines_signals` method for deleting signals from failing machines
+- Add `CAPIClient::prune_failing_machines_signals` method for deleting signals from failing machines ([#14](https://github.com/crowdsecurity/python-capi-sdk/pull/14))
 
 
 ---
