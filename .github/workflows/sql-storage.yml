@@ -2,7 +2,7 @@ name: Sql storage tests
 
 on:
   push:
-    branches: [ main, feat/add-test-for-sql-database-types ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
   pull_request:
