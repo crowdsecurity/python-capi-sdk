@@ -1,6 +1,7 @@
 import hashlib
+from typing import Union
 import uuid
-from datetime import timezone
+from datetime import datetime, timezone
 
 from dacite import from_dict
 from dateutil import parser as datetimeparser
@@ -26,13 +27,11 @@ def generate_machine_id_from_key(key, prefix: str = "", length=48) -> str:
 
 
 def create_signal(
-    attacker_ip: str, scenario: str, created_at: str, machine_id: str, **kwargs
+    attacker_ip: str, scenario: str, created_at: Union[str, datetime], machine_id: str, **kwargs
 ) -> SignalModel:
-    created_at = (
-        datetimeparser.parse(created_at)
-        .astimezone(timezone.utc)
-        .strftime("%Y-%m-%dT%H:%M:%S%z")
-    )
+    if isinstance(created_at, str):
+        created_at = datetimeparser.parse(created_at)
+    created_at = created_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z")
 
     if "start_at" not in kwargs:
         kwargs["start_at"] = created_at
