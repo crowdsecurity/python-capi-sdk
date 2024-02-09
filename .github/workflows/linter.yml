@@ -1,4 +1,4 @@
-name: Python Unittests
+name: Python linter
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  unittests:
+  linter:
 
     runs-on: ubuntu-latest
     strategy:
@@ -38,6 +38,6 @@ jobs:
         python setup.py install
         python -m pip install -r requirements-dev.txt
 
-    - name: Tests
+    - name: Lint check
       run: |
-        python -m pytest
+        black --check -v ./
