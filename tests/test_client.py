@@ -28,6 +28,7 @@ from dataclasses import asdict, replace
 import httpx
 import jwt
 import pytest
+import logging
 from dacite import from_dict
 from pytest_httpx import HTTPXMock
 
@@ -46,6 +47,13 @@ from cscapi.client import (
 )
 from cscapi.sql_storage import SQLStorage
 from cscapi.storage import MachineModel, SignalModel
+
+logger = logging.getLogger("capi-py-sdk")
+logger.setLevel(logging.DEBUG)  # Change this to the level you want
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 
 def mock_signals():
@@ -116,6 +124,7 @@ def client(storage):
             scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
             max_retries=1,
             retry_delay=0,
+            logger=logger,
         ),
     )
 

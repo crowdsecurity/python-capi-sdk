@@ -13,8 +13,8 @@ from cscapi.storage import MachineModel, ReceivedDecision, SignalModel, StorageI
 from more_itertools import batched
 
 __version__ = metadata.version("cscapi").split("+")[0]
-
-logging.getLogger("capi-py-sdk").addHandler(logging.NullHandler())
+null_logger = logging.getLogger("capi-py-sdk")
+null_logger.addHandler(logging.NullHandler())
 
 CAPI_BASE_URL = "https://api.crowdsec.net/v3"
 CAPI_BASE_DEV_URL = "https://api.dev.crowdsec.net/v3"
@@ -26,18 +26,20 @@ CAPI_DECISIONS_ENDPOINT = "/decisions/stream"
 CAPI_METRICS_ENDPOINT = "/metrics"
 
 
-def has_valid_token(machine: MachineModel, latency_offset=10) -> bool:
-    logging.debug(f"checking if token is valid for machine {machine.machine_id}")
+def has_valid_token(
+    machine: MachineModel, latency_offset=10, logger: logging.Logger = null_logger
+) -> bool:
+    logger.debug(f"checking if token is valid for machine {machine.machine_id}")
     try:
         payload = jwt.decode(machine.token, options={"verify_signature": False})
     except jwt.exceptions.DecodeError:
-        logging.debug(
+        logger.debug(
             f"could not decode token {machine.token} for machine {machine.machine_id}"
         )
         return False
     current_time = time.time()
     has_enough_ttl = current_time - latency_offset < payload["exp"]
-    logging.debug(
+    logger.debug(
         f"token for machine {machine.machine_id} has_enough_ttl = {has_enough_ttl}"
     )
     return has_enough_ttl
@@ -51,6 +53,7 @@ class CAPIClientConfig:
     max_retries: int = 3
     latency_offset: int = 10
     retry_delay: int = 5
+    logger: logging.Logger = null_logger
 
 
 def _group_signals_by_machine_id(
@@ -69,6 +72,7 @@ class CAPIClient:
         self.latency_offset = config.latency_offset
         self.max_retries = config.max_retries
         self.retry_delay = config.retry_delay
+        self.logger = config.logger or null_logger
 
         self.url = CAPI_BASE_URL if config.prod else CAPI_BASE_DEV_URL
 
@@ -115,11 +119,11 @@ class CAPIClient:
         attempt_count = 0
 
         while machines_to_process_attempts:
-            logging.info(f"attempt {attempt_count} to send signals")
+            self.logger.info(f"attempt {attempt_count} to send signals")
             retry_machines_to_process_attempts: List[MachineModel] = []
             if attempt_count >= self.max_retries:
                 for machine_to_process in machines_to_process_attempts:
-                    logging.error(
+                    self.logger.error(
                         f"Machine {machine_to_process.machine_id} is marked as failing"
                     )
                     self.storage.update_or_create_machine(
@@ -130,12 +134,12 @@ class CAPIClient:
             for machine_to_process in machines_to_process_attempts:
                 machine_to_process = self._prepare_machine(machine_to_process)
                 if machine_to_process.is_failing:
-                    logging.error(
+                    self.logger.error(
                         f"skipping sending signals for machine {machine_to_process.machine_id} as it's marked as failing"
                     )
                     continue
 
-                logging.info(
+                self.logger.info(
                     f"sending signals for machine {machine_to_process.machine_id}"
                 )
                 try:
@@ -144,7 +148,7 @@ class CAPIClient:
                         signals_by_machineid[machine_to_process.machine_id],
                     )
                 except httpx.HTTPStatusError as exc:
-                    logging.error(
+                    self.logger.error(
                         f"error while sending signals: {exc} for machine {machine_to_process.machine_id}"
                     )
                     if exc.response.status_code == 401:
@@ -157,19 +161,19 @@ class CAPIClient:
                         retry_machines_to_process_attempts.append(machine_to_process)
                         continue
                 if prune_after_send:
-                    logging.info(
+                    self.logger.info(
                         f"pruning sent signals for machine {machine_to_process.machine_id}"
                     )
                     self._prune_sent_signals()
 
-                logging.info(
+                self.logger.info(
                     f"sending metrics for machine {machine_to_process.machine_id}"
                 )
 
                 try:
                     self._send_metrics_for_machine(machine_to_process)
                 except httpx.HTTPStatusError as exc:
-                    logging.error(
+                    self.logger.error(
                         f"Error while sending metrics: {exc} for machine {machine_to_process.machine_id}"
                     )
 
@@ -178,7 +182,7 @@ class CAPIClient:
             if (len(retry_machines_to_process_attempts) != 0) and (
                 attempt_count < self.max_retries
             ):
-                logging.info(
+                self.logger.info(
                     f"waiting {self.retry_delay} seconds before retrying sending signals"
                 )
                 time.sleep(self.retry_delay)
@@ -219,7 +223,7 @@ class CAPIClient:
                 resp.raise_for_status()
                 break
             except httpx.HTTPStatusError as exc:
-                logging.error(
+                self.logger.error(
                     f"received error {exc} while sending metrics for machine {machine.machine_id}"
                 )
 
@@ -247,7 +251,7 @@ class CAPIClient:
         try:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            logging.error(
+            self.logger.error(
                 "Error while refreshing token: machine_id might be already registered or password is wrong"
             )
             raise exc
@@ -259,7 +263,7 @@ class CAPIClient:
         return new_machine
 
     def _register_machine(self, machine: MachineModel) -> MachineModel:
-        logging.info(f"registering machine {machine.machine_id}")
+        self.logger.info(f"registering machine {machine.machine_id}")
         machine.password = (
             machine.password if machine.password else secrets.token_urlsafe(32)
         )
@@ -276,7 +280,7 @@ class CAPIClient:
     def _prepare_machine(self, machine: MachineModel):
         machine = self._ensure_machine_capi_registered(machine)
         if machine.is_failing:
-            logging.error(
+            self.logger.error(
                 f"skipping connection for machine {machine.machine_id} as it's marked as failing"
             )
             return machine
@@ -292,7 +296,7 @@ class CAPIClient:
 
     def _ensure_machine_capi_connected(self, machine: MachineModel) -> MachineModel:
         if not has_valid_token(
-            machine, self.latency_offset
+            machine, self.latency_offset, self.logger
         ) or not self._has_valid_scenarios(machine):
             return self._refresh_machine_token(machine)
         return machine
@@ -328,7 +332,7 @@ class CAPIClient:
             for machine_id in machine_ids:
                 machine = self._prepare_machine(MachineModel(machine_id=machine_id))
                 if machine.is_failing:
-                    logging.error(
+                    self.logger.error(
                         f"skipping enrollment for machine {machine.machine_id} as it's marked as failing"
                     )
                     continue
@@ -346,7 +350,7 @@ class CAPIClient:
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code == 401:
                         if attempt_count >= self.max_retries:
-                            logging.error(
+                            self.logger.error(
                                 f"Error while enrolling machine {machine_id}: {exc}"
                             )
                             continue
