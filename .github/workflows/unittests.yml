@@ -9,6 +9,8 @@ on:
     branches: [ main ]
     paths-ignore:
       - '**.md'
+  schedule:
+    - cron: '25 02 * * THU'
   workflow_dispatch:
 
 jobs:

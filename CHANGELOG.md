@@ -19,6 +19,11 @@ functions provided by the `src/cscapi` folder.
 - Use context manager for Sql session ([#20](https://github.com/crowdsecurity/python-capi-sdk/pull/20))
 - **Breaking change**: The `session` attribute of `SQLStorage` is now an instance of the [sessionmaker](https://docs.sqlalchemy.org/en/20/orm/session_api.html#sqlalchemy.orm.sessionmaker) class and should be used as such.
 
+### Added
+
+- Add `CAPIClientConfig` logger attribute ([#21](https://github.com/crowdsecurity/python-capi-sdk/pull/21))
+
+
 ---
 
 
