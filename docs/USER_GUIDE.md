@@ -6,6 +6,18 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Description](#description)
+- [Features](#features)
+- [Quick start](#quick-start)
+  - [Installation](#installation)
+  - [CAPI Client instantiation](#capi-client-instantiation)
+    - [CAPI calls](#capi-calls)
+      - [Push signals](#push-signals)
+      - [Get Decisions stream list](#get-decisions-stream-list)
+      - [Enroll security engines](#enroll-security-engines)
+- [CAPI Client Configurations](#capi-client-configurations)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

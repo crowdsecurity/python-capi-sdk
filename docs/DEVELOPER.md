@@ -5,6 +5,13 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Local installation](#local-installation)
+  - [Virtual environment](#virtual-environment)
+  - [Install dependencies](#install-dependencies)
+  - [Unit tests](#unit-tests)
+- [Release process](#release-process)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
