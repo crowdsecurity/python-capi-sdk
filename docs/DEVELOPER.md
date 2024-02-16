@@ -48,7 +48,7 @@ Once you are ready to release a new version (e.g when all your changes are on th
 - Determine the next version number based on the changes made since the last release: `MAJOR.MINOR.PATCH`
 - Update the [CHANGELOG.md](../CHANGELOG.md) file with the new version number and the changes made since the last release.
   - Each release description must respect the same format as the previous ones.
-- Commit the changes with a message like `docs(changelog:) Prepare for release MAJOR.MINOR.PATCH`.
+- Commit the changes with a message like `chore(changelog) Prepare for release MAJOR.MINOR.PATCH`.
 - Browse to the [GitHub `Create and publish release` action](https://github.com/crowdsecurity/python-capi-sdk/actions/workflows/release.yml)
     - Click on `Run workflow` and fill the `Tag name` input with the new version number prefixed by a `v`: `vMAJOR.MINOR.PATCH`.
     - Tick the `Publish to PyPI` checkbox.
