@@ -4,6 +4,9 @@
 
 > A Python SDK to do the heavy lifting of interacting with CAPI. 
 
+[![Version](https://img.shields.io/github/v/release/crowdsecurity/python-capi-sdk)](https://github.com/crowdsecurity/python-capi-sdk/releases/)
+[![Unit Test](https://github.com/crowdsecurity/python-capi-sdk/actions/workflows/unittests.yml/badge.svg)](https://github.com/crowdsecurity/python-capi-sdk/actions/workflows/unittests.yml)
+[![Licence](https://img.shields.io/github/license/crowdsecurity/python-capi-sdk)](https://github.com/crowdsecurity/python-capi-sdk/blob/main/LICENSE)
 
 ## Usage
 
