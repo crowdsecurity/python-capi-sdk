@@ -5,10 +5,18 @@ This script will send a simple signal.
 import argparse
 import json
 import sys
+import logging
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal
 from cscapi.utils import generate_machine_id_from_key
+
+logger = logging.getLogger("capi-py-sdk")
+logger.setLevel(logging.DEBUG)  # Change this to the level you want
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -121,6 +129,7 @@ client = CAPIClient(
         scenarios=machine_scenarios,
         prod=args.prod,
         user_agent_prefix=args.user_agent_prefix,
+        logger=logger,
     ),
 )
 
