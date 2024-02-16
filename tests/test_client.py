@@ -109,7 +109,6 @@ def storage():
     db_name = f"{time.time()}.db"
     storage = SQLStorage(f"sqlite:///{db_name}")
     yield storage
-    storage.session.close()
     try:
         os.remove(db_name)
     except:
