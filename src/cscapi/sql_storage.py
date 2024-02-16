@@ -143,49 +143,49 @@ class SQLStorage(storage.StorageInterface):
     def __init__(self, connection_string="sqlite:///cscapi.db") -> None:
         engine = create_engine(connection_string, echo=False)
         Base.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine)
-        self.session = Session()
+        self.session = sessionmaker(bind=engine)
 
     def get_all_signals(self) -> List[storage.SignalModel]:
-        return [
-            from_dict(storage.SignalModel, res.to_dict())
-            for res in self.session.query(SignalDBModel).all()
-        ]
+        with self.session.begin() as session:
+            return [
+                from_dict(storage.SignalModel, res.to_dict())
+                for res in session.query(SignalDBModel).all()
+            ]
 
     def get_machine_by_id(self, machine_id: str) -> Optional[storage.MachineModel]:
-        existing = (
-            self.session.query(MachineDBModel)
-            .filter(MachineDBModel.machine_id == machine_id)
-            .first()
-        )
-        if not existing:
-            return None
-        return storage.MachineModel(
-            machine_id=existing.machine_id,
-            token=existing.token,
-            password=existing.password,
-            scenarios=existing.scenarios,
-            is_failing=existing.is_failing,
-        )
+        with self.session.begin() as session:
+            existing = (
+                session.query(MachineDBModel)
+                .filter(MachineDBModel.machine_id == machine_id)
+                .first()
+            )
+            if not existing:
+                return None
+            return storage.MachineModel(
+                machine_id=existing.machine_id,
+                token=existing.token,
+                password=existing.password,
+                scenarios=existing.scenarios,
+                is_failing=existing.is_failing,
+            )
 
     def update_or_create_machine(self, machine: storage.MachineModel) -> bool:
-        existing = (
-            self.session.query(MachineDBModel)
-            .filter(MachineDBModel.machine_id == machine.machine_id)
-            .all()
-        )
-        if not existing:
-            self.session.add(MachineDBModel(**asdict(machine)))
-            self.session.commit()
-            return True
+        with self.session.begin() as session:
+            existing = (
+                session.query(MachineDBModel)
+                .filter(MachineDBModel.machine_id == machine.machine_id)
+                .all()
+            )
+            if not existing:
+                session.add(MachineDBModel(**asdict(machine)))
+                return True
 
-        update_stmt = (
-            update(MachineDBModel)
-            .where(MachineDBModel.machine_id == machine.machine_id)
-            .values(**asdict(machine))
-        )
-        self.session.execute(update_stmt)
-        self.session.commit()
+            update_stmt = (
+                update(MachineDBModel)
+                .where(MachineDBModel.machine_id == machine.machine_id)
+                .values(**asdict(machine))
+            )
+            session.execute(update_stmt)
         return False
 
     def update_or_create_signal(self, signal: storage.SignalModel) -> bool:
@@ -211,34 +211,32 @@ class SQLStorage(storage.StorageInterface):
                 DecisionDBModel(**{"signal_id": to_insert.alert_id} | asdict(dec))
                 for dec in signal.decisions
             ]
+        with self.session.begin() as session:
+            existing = (
+                session.query(SignalDBModel)
+                .filter(SignalDBModel.alert_id == signal.alert_id)
+                .first()
+            )
 
-        existing = (
-            self.session.query(SignalDBModel)
-            .filter(SignalDBModel.alert_id == signal.alert_id)
-            .first()
-        )
+            if not existing:
+                session.add(to_insert)
+                return True
 
-        if not existing:
-            self.session.add(to_insert)
-            self.session.commit()
-            return True
+            for c in to_insert.__table__.columns:
+                setattr(existing, c.name, getattr(to_insert, c.name))
 
-        for c in to_insert.__table__.columns:
-            setattr(existing, c.name, getattr(to_insert, c.name))
-
-        self.session.commit()
         return False
 
     def delete_signals(self, signals: List[storage.SignalModel]):
         stmt = delete(SignalDBModel).where(
             SignalDBModel.alert_id.in_((signal.alert_id for signal in signals))
         )
-        self.session.execute(stmt)
-        self.session.commit()
+        with self.session.begin() as session:
+            session.execute(stmt)
 
     def delete_machines(self, machines: List[storage.MachineModel]):
         stmt = delete(MachineDBModel).where(
             MachineDBModel.machine_id.in_((machine.machine_id for machine in machines))
         )
-        self.session.execute(stmt)
-        self.session.commit()
+        with self.session.begin() as session:
+            session.execute(stmt)

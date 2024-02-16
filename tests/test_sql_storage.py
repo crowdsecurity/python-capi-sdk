@@ -48,17 +48,10 @@ class TestSQLStorage(TestCase):
     def tearDown(self) -> None:
         # postgresql, mysql, mariadb
         if database_exists(self.db_uri):
-            if self.storage.session:
-                self.storage.session.close()
-            engine = create_engine(self.db_uri, poolclass=NullPool)
-            conn = engine.connect()
             try:
                 drop_database(self.db_uri)
             except Exception as e:
                 print(f"Error occurred while dropping the database: {e}")
-
-            conn.close()
-            engine.dispose()
 
         # sqlite
         try:
@@ -105,7 +98,8 @@ class TestSQLStorage(TestCase):
             machine_id="1", token="2", password="2", scenarios="crowdsecurity/http-bf"
         )
         self.storage.update_or_create_machine(m2)
-        self.assertEqual(1, self.storage.session.query(MachineDBModel).count())
+        with self.storage.session.begin() as session:
+            self.assertEqual(1, session.query(MachineDBModel).count())
 
         retrieved = self.storage.get_machine_by_id("1")
 
@@ -124,14 +118,16 @@ class TestSQLStorage(TestCase):
         assert signal.alert_id is not None
         assert signal.sent == False
 
-        assert self.storage.session.query(ContextDBModel).count() == 4
+        with self.storage.session.begin() as session:
+            assert session.query(SignalDBModel).count() == 1
+            assert session.query(ContextDBModel).count() == 4
+            assert session.query(DecisionDBModel).count() == 1
+            assert session.query(SourceDBModel).count() == 1
         assert len(signal.context) == 4
 
-        assert self.storage.session.query(DecisionDBModel).count() == 1
         assert len(signal.decisions) == 1
 
         assert isinstance(signal.source, SourceModel)
-        assert self.storage.session.query(SourceDBModel).count() == 1
 
     def test_update_signal(self):
         assert self.storage.get_all_signals() == []
