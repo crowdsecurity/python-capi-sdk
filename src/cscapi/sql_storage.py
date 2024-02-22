@@ -14,6 +14,7 @@ from sqlalchemy import (
     delete,
     update,
     event,
+    or_,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -147,18 +148,42 @@ class SQLStorage(storage.StorageInterface):
         Base.metadata.create_all(engine)
         self.session = sessionmaker(bind=engine)
 
-    def get_all_signals(self, limit: int, offset: int = 0) -> List[storage.SignalModel]:
+    def get_all_signals(
+        self,
+        limit: int,
+        offset: int = 0,
+        sent: Optional[bool] = None,
+        is_failing: Optional[bool] = None,
+    ) -> List[storage.SignalModel]:
         with self.session.begin() as session:
-            query = (
-                session.query(SignalDBModel)
-                .options(
-                    selectinload("*"),
-                    joinedload(SignalDBModel.source),
-                )
-                .limit(limit)
-                .offset(offset)
+            query = session.query(SignalDBModel).options(
+                selectinload("*"),
+                joinedload(SignalDBModel.source),
             )
+            if sent is not None:
+                if sent:
+                    query = query.filter(SignalDBModel.sent.is_(True))
+                else:
+                    query = query.filter(
+                        or_(SignalDBModel.sent.is_(False), SignalDBModel.sent.is_(None))
+                    )
 
+            if is_failing is not None:
+                query = query.outerjoin(
+                    MachineDBModel,
+                    MachineDBModel.machine_id == SignalDBModel.machine_id,
+                )
+                if is_failing:
+                    query = query.filter(MachineDBModel.is_failing.is_(True))
+                else:
+                    query = query.filter(
+                        or_(
+                            MachineDBModel.is_failing.is_(False),
+                            MachineDBModel.is_failing.is_(None),
+                        )
+                    )
+
+            query = query.limit(limit).offset(offset)
             results = query.all()
             return [from_dict(storage.SignalModel, res.to_dict()) for res in results]
 

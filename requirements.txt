@@ -1,6 +1,6 @@
 sqlalchemy>=1.4
 python-dateutil
-httpx
+httpx==0.26.*
 dacite
 importlib-metadata
 pyjwt

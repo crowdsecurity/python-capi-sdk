@@ -87,38 +87,31 @@ class CAPIClient:
             self.storage.update_or_create_signal(signal)
 
     def prune_failing_machines_signals(self):
-        offset = 0
         while True:
             signals = self.storage.get_all_signals(
-                limit=SIGNAL_BATCH_LIMIT, offset=offset
+                limit=SIGNAL_BATCH_LIMIT, is_failing=True
             )
             if not signals:
                 break
 
-            for machine_id, grouped_signals in _group_signals_by_machine_id(
-                signals
-            ).items():
-                machine = self.storage.get_machine_by_id(machine_id)
-                if machine.is_failing:
-                    signal_ids = [signal.alert_id for signal in grouped_signals]
-                    self.storage.delete_signals(signal_ids)
-            offset += SIGNAL_BATCH_LIMIT
+            signal_ids = [signal.alert_id for signal in signals]
+            self.storage.delete_signals(signal_ids)
 
     def send_signals(self, prune_after_send: bool = True):
         offset = 0
         while True:
             signals = self.storage.get_all_signals(
-                limit=SIGNAL_BATCH_LIMIT, offset=offset
+                limit=SIGNAL_BATCH_LIMIT, offset=offset, sent=False, is_failing=False
             )
             if not signals:
                 break
-            unsent_signals_by_machineid = _group_signals_by_machine_id(
-                filter(lambda signal: not signal.sent, signals)
-            )
+            unsent_signals_by_machineid = _group_signals_by_machine_id(signals)
+
             self._send_signals_by_machine_id(
                 unsent_signals_by_machineid, prune_after_send
             )
-            offset += SIGNAL_BATCH_LIMIT
+            if not prune_after_send:
+                offset += SIGNAL_BATCH_LIMIT
 
     def _has_valid_scenarios(self, machine: MachineModel) -> bool:
         current_scenarios = self.scenarios

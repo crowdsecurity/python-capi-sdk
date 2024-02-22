@@ -144,7 +144,7 @@ class TestSQLStorage(TestCase):
         signal.sent = True
 
         self.storage.update_or_create_signal(signal)
-        signals = self.storage.get_all_signals(limit=1000)
+        signals = self.storage.get_all_signals(limit=1000, sent=None)
 
         assert len(signals) == 1
         signal = signals[0]

@@ -150,4 +150,4 @@ src/cscapi/_version.py
 .ddev
 
 # customm scripts
-examples/**/*test.py
+examples/**/perf*

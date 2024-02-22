@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import logging
+import time
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal
@@ -145,4 +146,13 @@ signals = [
 
 client.add_signals(signals)
 
+total_start_time = time.time()
+
+print(f"Starting time elapsed for sending signals: {total_start_time} seconds")
+
 client.send_signals()
+
+total_end_time = time.time()
+print(
+    f"Total time elapsed for sending signals: {total_end_time - total_start_time:.2f} seconds"
+)
