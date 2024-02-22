@@ -105,9 +105,9 @@ class StorageInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_signals(self, signals: List[SignalModel]):
+    def delete_signals(self, signal_ids: List[int]):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_machines(self, machines: List[MachineModel]):
+    def delete_machines(self, machine_ids: List[str]):
         raise NotImplementedError

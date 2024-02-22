@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, replace, dataclass
 from importlib import metadata
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 import httpx
 import jwt
@@ -95,10 +95,13 @@ class CAPIClient:
             if not signals:
                 break
 
-            for machine_id, signals in _group_signals_by_machine_id(signals).items():
+            for machine_id, grouped_signals in _group_signals_by_machine_id(
+                signals
+            ).items():
                 machine = self.storage.get_machine_by_id(machine_id)
                 if machine.is_failing:
-                    self.storage.delete_signals(signals)
+                    signal_ids = [signal.alert_id for signal in grouped_signals]
+                    self.storage.delete_signals(signal_ids)
             offset += SIGNAL_BATCH_LIMIT
 
     def send_signals(self, prune_after_send: bool = True):
@@ -161,8 +164,9 @@ class CAPIClient:
                 self.logger.info(
                     f"sending signals for machine {machine_to_process.machine_id}"
                 )
+                sent_signal_ids = []
                 try:
-                    self._send_signals(
+                    sent_signal_ids = self._send_signals(
                         machine_to_process.token,
                         signals_by_machineid[machine_to_process.machine_id],
                     )
@@ -179,11 +183,11 @@ class CAPIClient:
                         machine_to_process.token = None
                         retry_machines_to_process_attempts.append(machine_to_process)
                         continue
-                if prune_after_send:
+                if prune_after_send and sent_signal_ids:
                     self.logger.info(
                         f"pruning sent signals for machine {machine_to_process.machine_id}"
                     )
-                    self._prune_sent_signals()
+                    self.storage.delete_signals(sent_signal_ids)
 
                 self.logger.info(
                     f"sending metrics for machine {machine_to_process.machine_id}"
@@ -206,7 +210,8 @@ class CAPIClient:
                 )
                 time.sleep(self.retry_delay)
 
-    def _send_signals(self, token: str, signals: SignalModel):
+    def _send_signals(self, token: str, signals: List[SignalModel]) -> List[int]:
+        result = []
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]
             resp = self.http_client.post(
@@ -215,11 +220,17 @@ class CAPIClient:
                 headers={"Authorization": token},
             )
             resp.raise_for_status()
-            self._mark_signals_as_sent(signal_batch)
+            result.extend(self._mark_signals_as_sent(signal_batch))
 
-    def _mark_signals_as_sent(self, signals: List[SignalModel]):
+        return result
+
+    def _mark_signals_as_sent(self, signals: Tuple[SignalModel]) -> List[int]:
+        result = []
         for signal in signals:
             self.storage.update_or_create_signal(replace(signal, sent=True))
+            result.append(signal.alert_id)
+
+        return result
 
     def _send_metrics_for_machine(self, machine: MachineModel):
         for _ in range(self.max_retries + 1):
@@ -245,19 +256,6 @@ class CAPIClient:
                 self.logger.error(
                     f"received error {exc} while sending metrics for machine {machine.machine_id}"
                 )
-
-    def _prune_sent_signals(self):
-        offset = 0
-        while True:
-            signals = self.storage.get_all_signals(
-                limit=SIGNAL_BATCH_LIMIT, offset=offset
-            )
-            if not signals:
-                break
-            signals = list(filter(lambda signal: signal.sent, signals))
-
-            self.storage.delete_signals(signals)
-            offset += SIGNAL_BATCH_LIMIT
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
         machine.scenarios = self.scenarios

@@ -237,16 +237,12 @@ class SQLStorage(storage.StorageInterface):
 
         return False
 
-    def delete_signals(self, signals: List[storage.SignalModel]):
-        stmt = delete(SignalDBModel).where(
-            SignalDBModel.alert_id.in_((signal.alert_id for signal in signals))
-        )
+    def delete_signals(self, signal_ids: List[int]):
+        stmt = delete(SignalDBModel).where(SignalDBModel.alert_id.in_(signal_ids))
         with self.session.begin() as session:
             session.execute(stmt)
 
-    def delete_machines(self, machines: List[storage.MachineModel]):
-        stmt = delete(MachineDBModel).where(
-            MachineDBModel.machine_id.in_((machine.machine_id for machine in machines))
-        )
+    def delete_machines(self, machine_ids: List[str]):
+        stmt = delete(MachineDBModel).where(MachineDBModel.machine_id.in_(machine_ids))
         with self.session.begin() as session:
             session.execute(stmt)

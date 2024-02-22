@@ -16,8 +16,14 @@ functions provided by the `src/cscapi` folder.
 
 ### Changed
 
-- **Breaking change**: Modify `StorageInterface::get_all_signals` to accept a `limit` and `offset` argument
+- **Breaking change**: Modify `StorageInterface::get_all_signals` to accept a `limit` and `offset` arguments
+- **Breaking change**: Change `StorageInterface::delete_signals` signature to require a list of signal ids
+- **Breaking change**: Change `StorageInterface::delete_machines` signature to require a list of machine ids
 - **Breaking change**: `SQLStorage::get_all_signals` requires now a `limit` argument
+
+### Removed
+
+- **Breaking change**: Remove `CAPIClient::_prune_sent_signals` method
 
 
 ---
