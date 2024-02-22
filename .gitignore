@@ -148,3 +148,6 @@ src/cscapi/_version.py
 
 #ddev
 .ddev
+
+# customm scripts
+examples/**/*test.py
