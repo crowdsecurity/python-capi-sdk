@@ -21,6 +21,8 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
     sessionmaker,
+    joinedload,
+    selectinload,
 )
 
 from sqlalchemy.engine import Engine
@@ -145,12 +147,20 @@ class SQLStorage(storage.StorageInterface):
         Base.metadata.create_all(engine)
         self.session = sessionmaker(bind=engine)
 
-    def get_all_signals(self) -> List[storage.SignalModel]:
+    def get_all_signals(self, limit: int, offset: int = 0) -> List[storage.SignalModel]:
         with self.session.begin() as session:
-            return [
-                from_dict(storage.SignalModel, res.to_dict())
-                for res in session.query(SignalDBModel).all()
-            ]
+            query = (
+                session.query(SignalDBModel)
+                .options(
+                    selectinload("*"),
+                    joinedload(SignalDBModel.source),
+                )
+                .limit(limit)
+                .offset(offset)
+            )
+
+            results = query.all()
+            return [from_dict(storage.SignalModel, res.to_dict()) for res in results]
 
     def get_machine_by_id(self, machine_id: str) -> Optional[storage.MachineModel]:
         with self.session.begin() as session:

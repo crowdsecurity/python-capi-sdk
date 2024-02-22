@@ -10,6 +10,18 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.4.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.4.0) - 2024-02-22
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.3.0...v0.4.0)
+
+
+### Changed
+
+- **Breaking change**: Modify `StorageInterface::get_all_signals` to accept a `limit` and `offset` argument
+- **Breaking change**: `SQLStorage::get_all_signals` requires now a `limit` argument
+
+
+---
+
 ## [0.3.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.3.0) - 2024-02-16
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.2.1...v0.3.0)
 

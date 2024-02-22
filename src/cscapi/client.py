@@ -24,6 +24,7 @@ CAPI_ENROLL_ENDPOINT = "/watchers/enroll"
 CAPI_SIGNALS_ENDPOINT = "/signals"
 CAPI_DECISIONS_ENDPOINT = "/decisions/stream"
 CAPI_METRICS_ENDPOINT = "/metrics"
+SIGNAL_BATCH_LIMIT = 1000
 
 
 def has_valid_token(
@@ -86,17 +87,35 @@ class CAPIClient:
             self.storage.update_or_create_signal(signal)
 
     def prune_failing_machines_signals(self):
-        signals = self.storage.get_all_signals()
-        for machine_id, signals in _group_signals_by_machine_id(signals).items():
-            machine = self.storage.get_machine_by_id(machine_id)
-            if machine.is_failing:
-                self.storage.delete_signals(signals)
+        offset = 0
+        while True:
+            signals = self.storage.get_all_signals(
+                limit=SIGNAL_BATCH_LIMIT, offset=offset
+            )
+            if not signals:
+                break
+
+            for machine_id, signals in _group_signals_by_machine_id(signals).items():
+                machine = self.storage.get_machine_by_id(machine_id)
+                if machine.is_failing:
+                    self.storage.delete_signals(signals)
+            offset += SIGNAL_BATCH_LIMIT
 
     def send_signals(self, prune_after_send: bool = True):
-        unsent_signals_by_machineid = _group_signals_by_machine_id(
-            filter(lambda signal: not signal.sent, self.storage.get_all_signals())
-        )
-        self._send_signals_by_machine_id(unsent_signals_by_machineid, prune_after_send)
+        offset = 0
+        while True:
+            signals = self.storage.get_all_signals(
+                limit=SIGNAL_BATCH_LIMIT, offset=offset
+            )
+            if not signals:
+                break
+            unsent_signals_by_machineid = _group_signals_by_machine_id(
+                filter(lambda signal: not signal.sent, signals)
+            )
+            self._send_signals_by_machine_id(
+                unsent_signals_by_machineid, prune_after_send
+            )
+            offset += SIGNAL_BATCH_LIMIT
 
     def _has_valid_scenarios(self, machine: MachineModel) -> bool:
         current_scenarios = self.scenarios
@@ -228,15 +247,17 @@ class CAPIClient:
                 )
 
     def _prune_sent_signals(self):
-        signals = list(
-            filter(lambda signal: signal.sent, self.storage.get_all_signals())
-        )
+        offset = 0
+        while True:
+            signals = self.storage.get_all_signals(
+                limit=SIGNAL_BATCH_LIMIT, offset=offset
+            )
+            if not signals:
+                break
+            signals = list(filter(lambda signal: signal.sent, signals))
 
-        self.storage.delete_signals(signals)
-
-    def _clear_all_signals(self):
-        signals = self.storage.get_all_signals()
-        self.storage.delete_signals(signals)
+            self.storage.delete_signals(signals)
+            offset += SIGNAL_BATCH_LIMIT
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
         machine.scenarios = self.scenarios

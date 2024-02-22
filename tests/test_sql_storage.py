@@ -109,9 +109,9 @@ class TestSQLStorage(TestCase):
         self.assertEqual(retrieved.scenarios, m2.scenarios)
 
     def test_create_signal(self):
-        assert self.storage.get_all_signals() == []
+        assert self.storage.get_all_signals(limit=1000) == []
         self.storage.update_or_create_signal(mock_signals()[0])
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_all_signals(limit=1000)
         assert len(signals) == 1
         signal = signals[0]
 
@@ -130,11 +130,11 @@ class TestSQLStorage(TestCase):
         assert isinstance(signal.source, SourceModel)
 
     def test_update_signal(self):
-        assert self.storage.get_all_signals() == []
+        assert self.storage.get_all_signals(limit=1000) == []
 
         to_insert = mock_signals()[0]
         self.storage.update_or_create_signal(to_insert)
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_all_signals(limit=1000)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -144,7 +144,7 @@ class TestSQLStorage(TestCase):
         signal.sent = True
 
         self.storage.update_or_create_signal(signal)
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_all_signals(limit=1000)
 
         assert len(signals) == 1
         signal = signals[0]

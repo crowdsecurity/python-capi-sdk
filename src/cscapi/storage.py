@@ -87,7 +87,7 @@ class SignalModel:
 
 class StorageInterface(ABC):
     @abstractmethod
-    def get_all_signals(self) -> List[SignalModel]:
+    def get_all_signals(self, limit: int, offset: int = 0) -> List[SignalModel]:
         raise NotImplementedError
 
     @abstractmethod
