@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, replace, dataclass
 from importlib import metadata
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 import httpx
 import jwt
@@ -24,6 +24,7 @@ CAPI_ENROLL_ENDPOINT = "/watchers/enroll"
 CAPI_SIGNALS_ENDPOINT = "/signals"
 CAPI_DECISIONS_ENDPOINT = "/decisions/stream"
 CAPI_METRICS_ENDPOINT = "/metrics"
+SIGNAL_BATCH_LIMIT = 1000
 
 
 def has_valid_token(
@@ -85,23 +86,48 @@ class CAPIClient:
         for signal in signals:
             self.storage.update_or_create_signal(signal)
 
-    def prune_failing_machines_signals(self):
-        signals = self.storage.get_all_signals()
-        for machine_id, signals in _group_signals_by_machine_id(signals).items():
-            machine = self.storage.get_machine_by_id(machine_id)
-            if machine.is_failing:
-                self.storage.delete_signals(signals)
+    def prune_failing_machines_signals(
+        self, batch_size: int = SIGNAL_BATCH_LIMIT
+    ) -> int:
+        total_pruned = 0
+        while True:
+            signals = self.storage.get_signals(limit=batch_size, is_failing=True)
+            if not signals:
+                break
 
-    def send_signals(self, prune_after_send: bool = True):
-        unsent_signals_by_machineid = _group_signals_by_machine_id(
-            filter(lambda signal: not signal.sent, self.storage.get_all_signals())
-        )
-        self._send_signals_by_machine_id(unsent_signals_by_machineid, prune_after_send)
+            signal_ids = [signal.alert_id for signal in signals]
+            self.storage.delete_signals(signal_ids)
+            total_pruned += len(signals)
+
+        self.logger.info(f"Total pruned signals: {total_pruned}")
+        return total_pruned
+
+    def send_signals(
+        self, prune_after_send: bool = True, batch_size: int = SIGNAL_BATCH_LIMIT
+    ) -> int:
+        offset = 0
+        total_sent = 0
+        while True:
+            signals = self.storage.get_signals(
+                limit=batch_size, offset=offset, sent=False, is_failing=False
+            )
+            if not signals:
+                self.logger.info(f"No signals to send, stopping sending")
+                break
+            unsent_signals_by_machineid = _group_signals_by_machine_id(signals)
+
+            batch_sent = self._send_signals_by_machine_id(
+                unsent_signals_by_machineid, prune_after_send
+            )
+            total_sent += batch_sent
+
+        self.logger.info(f"Total sent signals: {total_sent}")
+        return total_sent
 
     def _has_valid_scenarios(self, machine: MachineModel) -> bool:
         current_scenarios = self.scenarios
         stored_scenarios = machine.scenarios
-        if len(stored_scenarios) == 0:
+        if not stored_scenarios:
             return False
 
         return current_scenarios == stored_scenarios
@@ -110,16 +136,17 @@ class CAPIClient:
         self,
         signals_by_machineid: Dict[str, List[SignalModel]],
         prune_after_send: bool = False,
-    ):
+    ) -> int:
         machines_to_process_attempts: List[MachineModel] = [
             MachineModel(machine_id=machine_id, scenarios=self.scenarios)
             for machine_id in signals_by_machineid.keys()
         ]
 
         attempt_count = 0
+        total_sent = 0
 
         while machines_to_process_attempts:
-            self.logger.info(f"attempt {attempt_count} to send signals")
+            self.logger.info(f"attempt {attempt_count + 1} to send signals")
             retry_machines_to_process_attempts: List[MachineModel] = []
             if attempt_count >= self.max_retries:
                 for machine_to_process in machines_to_process_attempts:
@@ -142,11 +169,15 @@ class CAPIClient:
                 self.logger.info(
                     f"sending signals for machine {machine_to_process.machine_id}"
                 )
+                sent_signal_ids = []
                 try:
-                    self._send_signals(
+                    sent_signal_ids = self._send_signals_to_capi(
                         machine_to_process.token,
                         signals_by_machineid[machine_to_process.machine_id],
                     )
+                    sent_signal_ids_count = len(sent_signal_ids)
+                    total_sent += sent_signal_ids_count
+                    self.logger.info(f"sent {sent_signal_ids_count} signals")
                 except httpx.HTTPStatusError as exc:
                     self.logger.error(
                         f"error while sending signals: {exc} for machine {machine_to_process.machine_id}"
@@ -160,11 +191,11 @@ class CAPIClient:
                         machine_to_process.token = None
                         retry_machines_to_process_attempts.append(machine_to_process)
                         continue
-                if prune_after_send:
+                if prune_after_send and sent_signal_ids:
                     self.logger.info(
                         f"pruning sent signals for machine {machine_to_process.machine_id}"
                     )
-                    self._prune_sent_signals()
+                    self.storage.delete_signals(sent_signal_ids)
 
                 self.logger.info(
                     f"sending metrics for machine {machine_to_process.machine_id}"
@@ -179,7 +210,7 @@ class CAPIClient:
 
             attempt_count += 1
             machines_to_process_attempts = retry_machines_to_process_attempts
-            if (len(retry_machines_to_process_attempts) != 0) and (
+            if retry_machines_to_process_attempts and (
                 attempt_count < self.max_retries
             ):
                 self.logger.info(
@@ -187,7 +218,12 @@ class CAPIClient:
                 )
                 time.sleep(self.retry_delay)
 
-    def _send_signals(self, token: str, signals: SignalModel):
+        return total_sent
+
+    def _send_signals_to_capi(
+        self, token: str, signals: List[SignalModel]
+    ) -> List[int]:
+        result = []
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]
             resp = self.http_client.post(
@@ -196,11 +232,17 @@ class CAPIClient:
                 headers={"Authorization": token},
             )
             resp.raise_for_status()
-            self._mark_signals_as_sent(signal_batch)
+            result.extend(self._mark_signals_as_sent(signal_batch))
 
-    def _mark_signals_as_sent(self, signals: List[SignalModel]):
+        return result
+
+    def _mark_signals_as_sent(self, signals: Tuple[SignalModel]) -> List[int]:
+        result = []
         for signal in signals:
             self.storage.update_or_create_signal(replace(signal, sent=True))
+            result.append(signal.alert_id)
+
+        return result
 
     def _send_metrics_for_machine(self, machine: MachineModel):
         for _ in range(self.max_retries + 1):
@@ -226,17 +268,6 @@ class CAPIClient:
                 self.logger.error(
                     f"received error {exc} while sending metrics for machine {machine.machine_id}"
                 )
-
-    def _prune_sent_signals(self):
-        signals = list(
-            filter(lambda signal: signal.sent, self.storage.get_all_signals())
-        )
-
-        self.storage.delete_signals(signals)
-
-    def _clear_all_signals(self):
-        signals = self.storage.get_all_signals()
-        self.storage.delete_signals(signals)
 
     def _refresh_machine_token(self, machine: MachineModel) -> MachineModel:
         machine.scenarios = self.scenarios

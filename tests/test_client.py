@@ -42,7 +42,6 @@ from cscapi.client import (
     CAPI_WATCHER_REGISTER_ENDPOINT,
     CAPI_METRICS_ENDPOINT,
     CAPIClient,
-    has_valid_token,
     CAPIClientConfig,
 )
 from cscapi.sql_storage import SQLStorage
@@ -195,7 +194,7 @@ class TestChooseEnv:
 
 class TestSendSignals:
     def test_fresh_send_signals(self, httpx_mock: HTTPXMock, client: CAPIClient):
-        assert len(client.storage.get_all_signals()) == 0
+        assert len(client.storage.get_signals(limit=1000)) == 0
         token = dummy_token()
         httpx_mock.add_response(
             method="POST",
@@ -217,11 +216,12 @@ class TestSendSignals:
         s1 = replace(mock_signals()[0], scenario="crowdsecurity/http-bf")
         s2 = mock_signals()[0]
         client.add_signals([s1, s2])
-        assert len(client.storage.get_all_signals()) == 2
+        assert len(client.storage.get_signals(limit=1000)) == 2
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 2
 
         machine = client.storage.get_machine_by_id("test")
         assert machine is not None
@@ -247,7 +247,7 @@ class TestSendSignals:
     def test_signal_gets_deleted_after_send(
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
-        assert len(client.storage.get_all_signals()) == 0
+        assert len(client.storage.get_signals(limit=1000)) == 0
         token = dummy_token()
         httpx_mock.add_response(
             method="POST",
@@ -266,11 +266,23 @@ class TestSendSignals:
             method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK"
         )
 
-        s1 = mock_signals()[0]
-        client.add_signals([s1])
-        assert len(client.storage.get_all_signals()) == 1
-        client.send_signals(prune_after_send=True)
-        assert len(client.storage.get_all_signals()) == 0
+        for x in range(5):
+            client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        sent = client.send_signals(prune_after_send=True, batch_size=1)
+        assert sent == 5
+        assert len(client.storage.get_signals(limit=1000)) == 0
+
+        for x in range(5):
+            client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        sent = client.send_signals(prune_after_send=False, batch_size=1)
+        assert sent == 5
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        assert len(client.storage.get_signals(limit=1000, sent=True)) == 5
+        assert len(client.storage.get_signals(limit=1000, sent=False)) == 0
 
     def test_signals_from_already_registered_machine(
         self, httpx_mock: HTTPXMock, client: CAPIClient
@@ -311,7 +323,8 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id("test") is not None
 
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 1
 
         requests = httpx_mock.get_requests()
 
@@ -363,7 +376,8 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id("test") is not None
 
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 1
 
         requests = httpx_mock.get_requests()
         assert len(requests) == 5
@@ -433,7 +447,8 @@ class TestSendSignals:
 
         assert client.storage.get_machine_by_id(fresh_mid) is None
 
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 3
         # stale machine makes 1 req to refresh token
         # fresh machine makes 2 reqs to register and login
 
@@ -465,9 +480,15 @@ class TestSendSignals:
         )
         client.storage.update_or_create_machine(machine)
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 0
         machine = client.storage.get_machine_by_id("test")
         assert machine.is_failing == True
+        assert len(client.storage.get_signals(limit=1000)) == 1
+        assert len(client.storage.get_signals(limit=1000, sent=True)) == 0
+        assert len(client.storage.get_signals(limit=1000, sent=False)) == 1
+        assert len(client.storage.get_signals(limit=1000, is_failing=True)) == 1
+        assert len(client.storage.get_signals(limit=1000, is_failing=False)) == 0
 
 
 class TestGetDecisions:

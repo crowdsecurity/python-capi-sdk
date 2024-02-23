@@ -87,7 +87,13 @@ class SignalModel:
 
 class StorageInterface(ABC):
     @abstractmethod
-    def get_all_signals(self) -> List[SignalModel]:
+    def get_signals(
+        self,
+        limit: int,
+        offset: int = 0,
+        sent: Optional[bool] = False,
+        is_failing: Optional[bool] = False,
+    ) -> List[SignalModel]:
         raise NotImplementedError
 
     @abstractmethod
@@ -105,9 +111,9 @@ class StorageInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_signals(self, signals: List[SignalModel]):
+    def delete_signals(self, signal_ids: List[int]):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_machines(self, machines: List[MachineModel]):
+    def delete_machines(self, machine_ids: List[str]):
         raise NotImplementedError

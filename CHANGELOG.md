@@ -10,6 +10,27 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.4.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.4.0) - 2024-02-23
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.3.0...v0.4.0)
+
+
+### Changed
+
+- **Breaking change**: Rename `StorageInterface::get_all_signals` to `get_signals` and add `limit`, `offset`, `sent` and `is_failing` arguments
+- **Breaking change**: Change `StorageInterface::delete_signals` signature to require a list of signal ids
+- **Breaking change**: Change `StorageInterface::delete_machines` signature to require a list of machine ids
+- Add `batch_size` argument to `CAPIClient::send_signals` and `CAPIClient::prune_failing_machines_signals` methods
+- `CAPIClient::send_signals` and `CAPIClient::prune_failing_machines_signals` now return the number of signals sent or pruned
+- `CAPIClient::send_signals` and `CAPIClient::prune_failing_machines_signals` now send and prune signals in batches
+
+
+### Removed
+
+- **Breaking change**: Remove `CAPIClient::_prune_sent_signals` method
+
+
+---
+
 ## [0.3.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.3.0) - 2024-02-16
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.2.1...v0.3.0)
 

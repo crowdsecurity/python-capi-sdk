@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import logging
+import time
 from cscapi.client import CAPIClient, CAPIClientConfig
 from cscapi.sql_storage import SQLStorage
 from cscapi.utils import create_signal
@@ -66,6 +67,12 @@ try:
         default=None,
     )
     parser.add_argument(
+        "--batch_size",
+        type=int,
+        help="Batch size for sending signals. Example: 1000",
+        default=1000,
+    )
+    parser.add_argument(
         "--context",
         type=str,
         help='Json encoded context. Example:"[{\\"key\\":\\"key1\\", '
@@ -103,6 +110,7 @@ database = (
     else "cscapi_examples_prod.db" if args.prod else "cscapi_examples_dev.db"
 )
 database_message = f"\tLocal storage database: {database}\n"
+batch_size_message = f"\tBatch size: {args.batch_size}\n"
 
 print(
     f"\nSending signal for {machine_id_message}\n\n"
@@ -114,6 +122,7 @@ print(
     f"{context_message}"
     f"{machine_scenarios_message}"
     f"{database_message}"
+    f"{batch_size_message}"
     f"{user_agent_message}"
     f"\n\n"
 )
@@ -145,4 +154,13 @@ signals = [
 
 client.add_signals(signals)
 
-client.send_signals()
+total_start_time = time.time()
+
+print(f"Starting time elapsed for sending signals: {total_start_time} seconds")
+
+client.send_signals(batch_size=args.batch_size)
+
+total_end_time = time.time()
+print(
+    f"Total time elapsed for sending signals: {total_end_time - total_start_time:.2f} seconds"
+)

@@ -14,6 +14,7 @@ from sqlalchemy import (
     delete,
     update,
     event,
+    or_,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -21,6 +22,8 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
     sessionmaker,
+    joinedload,
+    selectinload,
 )
 
 from sqlalchemy.engine import Engine
@@ -145,12 +148,44 @@ class SQLStorage(storage.StorageInterface):
         Base.metadata.create_all(engine)
         self.session = sessionmaker(bind=engine)
 
-    def get_all_signals(self) -> List[storage.SignalModel]:
+    def get_signals(
+        self,
+        limit: int,
+        offset: int = 0,
+        sent: Optional[bool] = None,
+        is_failing: Optional[bool] = None,
+    ) -> List[storage.SignalModel]:
         with self.session.begin() as session:
-            return [
-                from_dict(storage.SignalModel, res.to_dict())
-                for res in session.query(SignalDBModel).all()
-            ]
+            query = session.query(SignalDBModel).options(
+                selectinload("*"),
+                joinedload(SignalDBModel.source),
+            )
+            if sent is not None:
+                if sent:
+                    query = query.filter(SignalDBModel.sent == True)
+                else:
+                    query = query.filter(
+                        or_(SignalDBModel.sent.is_(False), SignalDBModel.sent == None)
+                    )
+
+            if is_failing is not None:
+                query = query.outerjoin(
+                    MachineDBModel,
+                    MachineDBModel.machine_id == SignalDBModel.machine_id,
+                )
+                if is_failing:
+                    query = query.filter(MachineDBModel.is_failing == True)
+                else:
+                    query = query.filter(
+                        or_(
+                            MachineDBModel.is_failing == False,
+                            MachineDBModel.is_failing == None,
+                        )
+                    )
+
+            query = query.limit(limit).offset(offset)
+            results = query.all()
+            return [from_dict(storage.SignalModel, res.to_dict()) for res in results]
 
     def get_machine_by_id(self, machine_id: str) -> Optional[storage.MachineModel]:
         with self.session.begin() as session:
@@ -227,16 +262,12 @@ class SQLStorage(storage.StorageInterface):
 
         return False
 
-    def delete_signals(self, signals: List[storage.SignalModel]):
-        stmt = delete(SignalDBModel).where(
-            SignalDBModel.alert_id.in_((signal.alert_id for signal in signals))
-        )
+    def delete_signals(self, signal_ids: List[int]):
+        stmt = delete(SignalDBModel).where(SignalDBModel.alert_id.in_(signal_ids))
         with self.session.begin() as session:
             session.execute(stmt)
 
-    def delete_machines(self, machines: List[storage.MachineModel]):
-        stmt = delete(MachineDBModel).where(
-            MachineDBModel.machine_id.in_((machine.machine_id for machine in machines))
-        )
+    def delete_machines(self, machine_ids: List[str]):
+        stmt = delete(MachineDBModel).where(MachineDBModel.machine_id.in_(machine_ids))
         with self.session.begin() as session:
             session.execute(stmt)

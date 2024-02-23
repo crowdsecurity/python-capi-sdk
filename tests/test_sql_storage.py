@@ -1,6 +1,10 @@
 import os
 import time
 from unittest import TestCase
+import pytest
+import random
+
+from dacite import from_dict
 
 from cscapi.sql_storage import (
     ContextDBModel,
@@ -10,15 +14,64 @@ from cscapi.sql_storage import (
     SourceDBModel,
     SQLStorage,
 )
-from cscapi.storage import MachineModel, SourceModel
+from cscapi.storage import MachineModel, SourceModel, SignalModel
 
-from sqlalchemy import (
-    create_engine,
+from cscapi.client import (
+    CAPIClient,
+    CAPIClientConfig,
 )
+
 from sqlalchemy_utils import database_exists, create_database, drop_database
-from sqlalchemy.pool import NullPool
 
 from .test_client import mock_signals
+
+
+def mock_signals():
+    return [
+        from_dict(SignalModel, z)
+        for z in [
+            {
+                "decisions": [
+                    {
+                        "duration": "59m49.264032632s",
+                        "id": random.randint(0, 100000),
+                        "origin": "crowdsec",
+                        "scenario": "crowdsecurity/ssh-bf",
+                        "scope": "Ip",
+                        "simulated": False,
+                        "type": "ban",
+                        "value": "1.1.1.172",
+                    }
+                ],
+                "context": [
+                    {"key": "target_user", "value": "netflix"},
+                    {"key": "service", "value": "ssh"},
+                    {"key": "target_user", "value": "netflix"},
+                    {"key": "service", "value": "ssh"},
+                ],
+                "uuid": "1",
+                "machine_id": "test",
+                "message": "Ip 1.1.1.172 performed 'crowdsecurity/ssh-bf' (6 events over 2.920062ms) at 2020-11-28 10:20:46.845619968 +0100 CET m=+5.903899761",
+                "scenario": "crowdsecurity/ssh-bf",
+                "scenario_hash": "4441dcff07020f6690d998b7101e642359ba405c2abb83565bbbdcee36de280f",
+                "scenario_version": "0.1",
+                "scenario_trust": "trusted",
+                "source": {
+                    "as_name": "Cloudflare Inc",
+                    "cn": "AU",
+                    "ip": "1.1.1.172",
+                    "latitude": -37.7,
+                    "longitude": 145.1833,
+                    "range": "1.1.1.0/24",
+                    "scope": "Ip",
+                    "value": "1.1.1.172",
+                },
+                "start_at": "2020-11-28 10:20:46.842701127 +0100 +0100",
+                "stop_at": "2020-11-28 10:20:46.845621385 +0100 +0100",
+                "created_at": "2020-11-28T10:20:47+01:00",
+            }
+        ]
+    ]
 
 
 class TestSQLStorage(TestCase):
@@ -45,6 +98,15 @@ class TestSQLStorage(TestCase):
         self.db_uri = db_uri
         print(f"Using {engine_type} engine with {db_uri}")
 
+        self.client = CAPIClient(
+            self.storage,
+            CAPIClientConfig(
+                scenarios=["crowdsecurity/http-bf", "crowdsecurity/ssh-bf"],
+                max_retries=1,
+                retry_delay=0,
+            ),
+        )
+
     def tearDown(self) -> None:
         # postgresql, mysql, mariadb
         if database_exists(self.db_uri):
@@ -58,6 +120,83 @@ class TestSQLStorage(TestCase):
             os.remove(self.db_path)
         except:
             pass
+
+    def test_get_signals_with_no_machine(self):
+        assert len(self.storage.get_signals(limit=1000)) == 0
+        for x in range(10):
+            self.client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(self.storage.get_signals(limit=1000)) == 10
+        assert len(self.storage.get_signals(limit=5)) == 5
+        assert len(self.storage.get_signals(limit=5, offset=8)) == 2
+        assert len(self.storage.get_signals(limit=1000, sent=True)) == 0
+        assert len(self.storage.get_signals(limit=1000, sent=False)) == 10
+        assert len(self.storage.get_signals(limit=1000, is_failing=True)) == 0
+        assert len(self.storage.get_signals(limit=1000, is_failing=False)) == 10
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=False, is_failing=False))
+            == 10
+        )
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=True, is_failing=False)) == 0
+        )
+
+    def test_get_signals_with_machine(self):
+        m1 = MachineModel(
+            machine_id="test",  # Same machine_id as in mock_signals
+            token="1",
+            password="1",
+            scenarios="crowdsecurity/http-probing",
+        )
+        self.assertTrue(self.storage.update_or_create_machine(m1))
+        assert len(self.storage.get_signals(limit=1000)) == 0
+        for x in range(10):
+            self.client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(self.storage.get_signals(limit=1000)) == 10
+        assert len(self.storage.get_signals(limit=5)) == 5
+        assert len(self.storage.get_signals(limit=5, offset=8)) == 2
+        assert len(self.storage.get_signals(limit=1000, sent=True)) == 0
+        assert len(self.storage.get_signals(limit=1000, sent=False)) == 10
+        assert len(self.storage.get_signals(limit=1000, is_failing=True)) == 0
+        assert len(self.storage.get_signals(limit=1000, is_failing=False)) == 10
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=False, is_failing=False))
+            == 10
+        )
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=True, is_failing=False)) == 0
+        )
+
+    def test_get_signals_with_failing_machine(self):
+        m1 = MachineModel(
+            machine_id="test",  # Same machine_id as in mock_signals
+            token="1",
+            password="1",
+            scenarios="crowdsecurity/http-probing",
+            is_failing=True,
+        )
+        self.assertTrue(self.storage.update_or_create_machine(m1))
+        assert len(self.storage.get_signals(limit=1000)) == 0
+        for x in range(10):
+            self.client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(self.storage.get_signals(limit=1000)) == 10
+        assert len(self.storage.get_signals(limit=5)) == 5
+        assert len(self.storage.get_signals(limit=5, offset=8)) == 2
+        assert len(self.storage.get_signals(limit=1000, sent=True)) == 0
+        assert len(self.storage.get_signals(limit=1000, sent=False)) == 10
+        assert len(self.storage.get_signals(limit=1000, is_failing=True)) == 10
+        assert len(self.storage.get_signals(limit=1000, is_failing=False)) == 0
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=False, is_failing=False)) == 0
+        )
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=True, is_failing=False)) == 0
+        )
+        assert (
+            len(self.storage.get_signals(limit=1000, sent=True, is_failing=True)) == 0
+        )
 
     def test_create_and_retrieve_machine(self):
         m1 = MachineModel(
@@ -109,9 +248,9 @@ class TestSQLStorage(TestCase):
         self.assertEqual(retrieved.scenarios, m2.scenarios)
 
     def test_create_signal(self):
-        assert self.storage.get_all_signals() == []
+        assert self.storage.get_signals(limit=1000) == []
         self.storage.update_or_create_signal(mock_signals()[0])
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_signals(limit=1000)
         assert len(signals) == 1
         signal = signals[0]
 
@@ -130,11 +269,11 @@ class TestSQLStorage(TestCase):
         assert isinstance(signal.source, SourceModel)
 
     def test_update_signal(self):
-        assert self.storage.get_all_signals() == []
+        assert self.storage.get_signals(limit=1000) == []
 
         to_insert = mock_signals()[0]
         self.storage.update_or_create_signal(to_insert)
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_signals(limit=1000)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -144,7 +283,7 @@ class TestSQLStorage(TestCase):
         signal.sent = True
 
         self.storage.update_or_create_signal(signal)
-        signals = self.storage.get_all_signals()
+        signals = self.storage.get_signals(limit=1000)
 
         assert len(signals) == 1
         signal = signals[0]
