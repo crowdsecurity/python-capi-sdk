@@ -20,6 +20,7 @@ functions provided by the `src/cscapi` folder.
 - **Breaking change**: Change `StorageInterface::delete_signals` signature to require a list of signal ids
 - **Breaking change**: Change `StorageInterface::delete_machines` signature to require a list of machine ids
 - Add `batch_size` argument to `CAPIClient::send_signals` and `CAPIClient::prune_failing_machines_signals` methods
+- `CAPIClient::send_signals` and `CAPIClient::prune_failing_machines_signals` now return the number of signals sent or pruned
 
 ### Removed
 
