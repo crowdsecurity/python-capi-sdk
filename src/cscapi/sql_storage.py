@@ -148,7 +148,7 @@ class SQLStorage(storage.StorageInterface):
         Base.metadata.create_all(engine)
         self.session = sessionmaker(bind=engine)
 
-    def get_all_signals(
+    def get_signals(
         self,
         limit: int,
         offset: int = 0,

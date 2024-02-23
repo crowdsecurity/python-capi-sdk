@@ -194,7 +194,7 @@ class TestChooseEnv:
 
 class TestSendSignals:
     def test_fresh_send_signals(self, httpx_mock: HTTPXMock, client: CAPIClient):
-        assert len(client.storage.get_all_signals(limit=1000)) == 0
+        assert len(client.storage.get_signals(limit=1000)) == 0
         token = dummy_token()
         httpx_mock.add_response(
             method="POST",
@@ -216,10 +216,7 @@ class TestSendSignals:
         s1 = replace(mock_signals()[0], scenario="crowdsecurity/http-bf")
         s2 = mock_signals()[0]
         client.add_signals([s1, s2])
-        assert (
-            len(client.storage.get_all_signals(limit=1000, sent=None, is_failing=None))
-            == 2
-        )
+        assert len(client.storage.get_signals(limit=1000)) == 2
 
         assert client.storage.get_machine_by_id("test") is None
 
@@ -249,7 +246,7 @@ class TestSendSignals:
     def test_signal_gets_deleted_after_send(
         self, httpx_mock: HTTPXMock, client: CAPIClient
     ):
-        assert len(client.storage.get_all_signals(limit=1000)) == 0
+        assert len(client.storage.get_signals(limit=1000)) == 0
         token = dummy_token()
         httpx_mock.add_response(
             method="POST",
@@ -270,9 +267,9 @@ class TestSendSignals:
 
         s1 = mock_signals()[0]
         client.add_signals([s1])
-        assert len(client.storage.get_all_signals(limit=1000)) == 1
+        assert len(client.storage.get_signals(limit=1000)) == 1
         client.send_signals(prune_after_send=True)
-        assert len(client.storage.get_all_signals(limit=1000)) == 0
+        assert len(client.storage.get_signals(limit=1000)) == 0
 
     def test_signals_from_already_registered_machine(
         self, httpx_mock: HTTPXMock, client: CAPIClient

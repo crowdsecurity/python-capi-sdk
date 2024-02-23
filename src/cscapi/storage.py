@@ -87,7 +87,7 @@ class SignalModel:
 
 class StorageInterface(ABC):
     @abstractmethod
-    def get_all_signals(
+    def get_signals(
         self,
         limit: int,
         offset: int = 0,

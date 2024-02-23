@@ -88,7 +88,7 @@ class CAPIClient:
 
     def prune_failing_machines_signals(self, batch_size: int = SIGNAL_BATCH_LIMIT):
         while True:
-            signals = self.storage.get_all_signals(limit=batch_size, is_failing=True)
+            signals = self.storage.get_signals(limit=batch_size, is_failing=True)
             if not signals:
                 break
 
@@ -100,7 +100,7 @@ class CAPIClient:
     ):
         offset = 0
         while True:
-            signals = self.storage.get_all_signals(
+            signals = self.storage.get_signals(
                 limit=batch_size, offset=offset, sent=False, is_failing=False
             )
             if not signals:
