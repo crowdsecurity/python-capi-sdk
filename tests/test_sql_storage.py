@@ -125,6 +125,7 @@ class TestSQLStorage(TestCase):
         assert len(self.storage.get_signals(limit=1000)) == 0
         for x in range(10):
             self.client.add_signals(mock_signals())
+            time.sleep(0.05)
         assert len(self.storage.get_signals(limit=1000)) == 10
         assert len(self.storage.get_signals(limit=5)) == 5
         assert len(self.storage.get_signals(limit=5, offset=8)) == 2
@@ -151,6 +152,7 @@ class TestSQLStorage(TestCase):
         assert len(self.storage.get_signals(limit=1000)) == 0
         for x in range(10):
             self.client.add_signals(mock_signals())
+            time.sleep(0.05)
         assert len(self.storage.get_signals(limit=1000)) == 10
         assert len(self.storage.get_signals(limit=5)) == 5
         assert len(self.storage.get_signals(limit=5, offset=8)) == 2
@@ -178,6 +180,7 @@ class TestSQLStorage(TestCase):
         assert len(self.storage.get_signals(limit=1000)) == 0
         for x in range(10):
             self.client.add_signals(mock_signals())
+            time.sleep(0.05)
         assert len(self.storage.get_signals(limit=1000)) == 10
         assert len(self.storage.get_signals(limit=5)) == 5
         assert len(self.storage.get_signals(limit=5, offset=8)) == 2

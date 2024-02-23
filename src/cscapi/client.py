@@ -120,8 +120,6 @@ class CAPIClient:
                 unsent_signals_by_machineid, prune_after_send
             )
             total_sent += batch_sent
-            if not prune_after_send:
-                offset += batch_size
 
         self.logger.info(f"Total sent signals: {total_sent}")
         return total_sent
@@ -177,7 +175,9 @@ class CAPIClient:
                         machine_to_process.token,
                         signals_by_machineid[machine_to_process.machine_id],
                     )
-                    total_sent += len(sent_signal_ids)
+                    sent_signal_ids_count = len(sent_signal_ids)
+                    total_sent += sent_signal_ids_count
+                    self.logger.info(f"sent {sent_signal_ids_count} signals")
                 except httpx.HTTPStatusError as exc:
                     self.logger.error(
                         f"error while sending signals: {exc} for machine {machine_to_process.machine_id}"

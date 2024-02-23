@@ -266,12 +266,23 @@ class TestSendSignals:
             method="POST", url=CAPI_BASE_DEV_URL + CAPI_METRICS_ENDPOINT, text="OK"
         )
 
-        s1 = mock_signals()[0]
-        client.add_signals([s1])
-        assert len(client.storage.get_signals(limit=1000)) == 1
-        sent = client.send_signals(prune_after_send=True)
-        assert sent == 1
+        for x in range(5):
+            client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        sent = client.send_signals(prune_after_send=True, batch_size=1)
+        assert sent == 5
         assert len(client.storage.get_signals(limit=1000)) == 0
+
+        for x in range(5):
+            client.add_signals(mock_signals())
+            time.sleep(0.05)
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        sent = client.send_signals(prune_after_send=False, batch_size=1)
+        assert sent == 5
+        assert len(client.storage.get_signals(limit=1000)) == 5
+        assert len(client.storage.get_signals(limit=1000, sent=True)) == 5
+        assert len(client.storage.get_signals(limit=1000, sent=False)) == 0
 
     def test_signals_from_already_registered_machine(
         self, httpx_mock: HTTPXMock, client: CAPIClient
