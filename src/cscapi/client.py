@@ -104,6 +104,7 @@ class CAPIClient:
                 limit=batch_size, offset=offset, sent=False, is_failing=False
             )
             if not signals:
+                self.logger.info(f"No signals to send, stopping sending")
                 break
             unsent_signals_by_machineid = _group_signals_by_machine_id(signals)
 
@@ -134,7 +135,7 @@ class CAPIClient:
         attempt_count = 0
 
         while machines_to_process_attempts:
-            self.logger.info(f"attempt {attempt_count} to send signals")
+            self.logger.info(f"attempt {attempt_count + 1} to send signals")
             retry_machines_to_process_attempts: List[MachineModel] = []
             if attempt_count >= self.max_retries:
                 for machine_to_process in machines_to_process_attempts:

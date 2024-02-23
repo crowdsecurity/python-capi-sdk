@@ -67,6 +67,12 @@ try:
         default=None,
     )
     parser.add_argument(
+        "--batch_size",
+        type=int,
+        help="Batch size for sending signals. Example: 1000",
+        default=1000,
+    )
+    parser.add_argument(
         "--context",
         type=str,
         help='Json encoded context. Example:"[{\\"key\\":\\"key1\\", '
@@ -104,6 +110,7 @@ database = (
     else "cscapi_examples_prod.db" if args.prod else "cscapi_examples_dev.db"
 )
 database_message = f"\tLocal storage database: {database}\n"
+batch_size_message = f"\tBatch size: {args.batch_size}\n"
 
 print(
     f"\nSending signal for {machine_id_message}\n\n"
@@ -115,6 +122,7 @@ print(
     f"{context_message}"
     f"{machine_scenarios_message}"
     f"{database_message}"
+    f"{batch_size_message}"
     f"{user_agent_message}"
     f"\n\n"
 )
@@ -150,7 +158,7 @@ total_start_time = time.time()
 
 print(f"Starting time elapsed for sending signals: {total_start_time} seconds")
 
-client.send_signals()
+client.send_signals(batch_size=args.batch_size)
 
 total_end_time = time.time()
 print(
