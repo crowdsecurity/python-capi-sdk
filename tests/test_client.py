@@ -220,7 +220,8 @@ class TestSendSignals:
 
         assert client.storage.get_machine_by_id("test") is None
 
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 2
 
         machine = client.storage.get_machine_by_id("test")
         assert machine is not None
@@ -268,7 +269,8 @@ class TestSendSignals:
         s1 = mock_signals()[0]
         client.add_signals([s1])
         assert len(client.storage.get_signals(limit=1000)) == 1
-        client.send_signals(prune_after_send=True)
+        sent = client.send_signals(prune_after_send=True)
+        assert sent == 1
         assert len(client.storage.get_signals(limit=1000)) == 0
 
     def test_signals_from_already_registered_machine(
@@ -310,7 +312,8 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id("test") is not None
 
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 1
 
         requests = httpx_mock.get_requests()
 
@@ -362,7 +365,8 @@ class TestSendSignals:
         assert client.storage.get_machine_by_id("test") is not None
 
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 1
 
         requests = httpx_mock.get_requests()
         assert len(requests) == 5
@@ -432,7 +436,8 @@ class TestSendSignals:
 
         assert client.storage.get_machine_by_id(fresh_mid) is None
 
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 3
         # stale machine makes 1 req to refresh token
         # fresh machine makes 2 reqs to register and login
 
@@ -464,9 +469,15 @@ class TestSendSignals:
         )
         client.storage.update_or_create_machine(machine)
         client.add_signals(mock_signals())
-        client.send_signals()
+        sent = client.send_signals()
+        assert sent == 0
         machine = client.storage.get_machine_by_id("test")
         assert machine.is_failing == True
+        assert len(client.storage.get_signals(limit=1000)) == 1
+        assert len(client.storage.get_signals(limit=1000, sent=True)) == 0
+        assert len(client.storage.get_signals(limit=1000, sent=False)) == 1
+        assert len(client.storage.get_signals(limit=1000, is_failing=True)) == 1
+        assert len(client.storage.get_signals(limit=1000, is_failing=False)) == 0
 
 
 class TestGetDecisions:
