@@ -220,7 +220,9 @@ class CAPIClient:
 
         return total_sent
 
-    def _send_signals_to_capi(self, token: str, signals: List[SignalModel]) -> List[int]:
+    def _send_signals_to_capi(
+        self, token: str, signals: List[SignalModel]
+    ) -> List[int]:
         result = []
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]

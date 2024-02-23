@@ -107,7 +107,9 @@ env_message = "\tEnv: production\n" if args.prod else "\tEnv: development\n"
 database = (
     args.database
     if args.database
-    else "cscapi_examples_prod.db" if args.prod else "cscapi_examples_dev.db"
+    else "cscapi_examples_prod.db"
+    if args.prod
+    else "cscapi_examples_dev.db"
 )
 database_message = f"\tLocal storage database: {database}\n"
 batch_size_message = f"\tBatch size: {args.batch_size}\n"
