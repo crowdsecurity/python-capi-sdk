@@ -162,10 +162,10 @@ class SQLStorage(storage.StorageInterface):
             )
             if sent is not None:
                 if sent:
-                    query = query.filter(SignalDBModel.sent.is_(True))
+                    query = query.filter(SignalDBModel.sent == True)
                 else:
                     query = query.filter(
-                        or_(SignalDBModel.sent.is_(False), SignalDBModel.sent.is_(None))
+                        or_(SignalDBModel.sent.is_(False), SignalDBModel.sent == None)
                     )
 
             if is_failing is not None:
@@ -174,12 +174,12 @@ class SQLStorage(storage.StorageInterface):
                     MachineDBModel.machine_id == SignalDBModel.machine_id,
                 )
                 if is_failing:
-                    query = query.filter(MachineDBModel.is_failing.is_(True))
+                    query = query.filter(MachineDBModel.is_failing == True)
                 else:
                     query = query.filter(
                         or_(
-                            MachineDBModel.is_failing.is_(False),
-                            MachineDBModel.is_failing.is_(None),
+                            MachineDBModel.is_failing == False,
+                            MachineDBModel.is_failing == None,
                         )
                     )
 

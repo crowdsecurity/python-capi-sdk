@@ -86,22 +86,22 @@ class CAPIClient:
         for signal in signals:
             self.storage.update_or_create_signal(signal)
 
-    def prune_failing_machines_signals(self):
+    def prune_failing_machines_signals(self, batch_size: int = SIGNAL_BATCH_LIMIT):
         while True:
-            signals = self.storage.get_all_signals(
-                limit=SIGNAL_BATCH_LIMIT, is_failing=True
-            )
+            signals = self.storage.get_all_signals(limit=batch_size, is_failing=True)
             if not signals:
                 break
 
             signal_ids = [signal.alert_id for signal in signals]
             self.storage.delete_signals(signal_ids)
 
-    def send_signals(self, prune_after_send: bool = True):
+    def send_signals(
+        self, prune_after_send: bool = True, batch_size: int = SIGNAL_BATCH_LIMIT
+    ):
         offset = 0
         while True:
             signals = self.storage.get_all_signals(
-                limit=SIGNAL_BATCH_LIMIT, offset=offset, sent=False, is_failing=False
+                limit=batch_size, offset=offset, sent=False, is_failing=False
             )
             if not signals:
                 break
@@ -111,12 +111,12 @@ class CAPIClient:
                 unsent_signals_by_machineid, prune_after_send
             )
             if not prune_after_send:
-                offset += SIGNAL_BATCH_LIMIT
+                offset += batch_size
 
     def _has_valid_scenarios(self, machine: MachineModel) -> bool:
         current_scenarios = self.scenarios
         stored_scenarios = machine.scenarios
-        if len(stored_scenarios) == 0:
+        if not stored_scenarios:
             return False
 
         return current_scenarios == stored_scenarios
