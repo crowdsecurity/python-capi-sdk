@@ -171,7 +171,7 @@ class CAPIClient:
                 )
                 sent_signal_ids = []
                 try:
-                    sent_signal_ids = self._send_signals(
+                    sent_signal_ids = self._send_signals_to_capi(
                         machine_to_process.token,
                         signals_by_machineid[machine_to_process.machine_id],
                     )
@@ -220,7 +220,7 @@ class CAPIClient:
 
         return total_sent
 
-    def _send_signals(self, token: str, signals: List[SignalModel]) -> List[int]:
+    def _send_signals_to_capi(self, token: str, signals: List[SignalModel]) -> List[int]:
         result = []
         for signal_batch in batched(signals, 250):
             body = [asdict(signal) for signal in signal_batch]
