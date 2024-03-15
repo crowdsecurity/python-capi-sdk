@@ -10,6 +10,16 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.5.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.5.0) - 2024-03-??
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.4.0...v0.5.0)
+
+
+### Changed
+
+- **Breaking change**: Add `StorageInterface::mass_update_signals` method
+
+---
+
 ## [0.4.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.4.0) - 2024-02-23
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.3.0...v0.4.0)
 

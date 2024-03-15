@@ -238,7 +238,7 @@ class CAPIClient:
 
     def _mark_signals_as_sent(self, signals: Tuple[SignalModel]) -> List[int]:
         signal_ids = [signal.alert_id for signal in signals]
-        self.storage.mass_update_signals(signal_ids=signal_ids, changes={'sent': True})
+        self.storage.mass_update_signals(signal_ids=signal_ids, changes={"sent": True})
 
         return signal_ids
 
