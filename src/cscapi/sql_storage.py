@@ -223,6 +223,12 @@ class SQLStorage(storage.StorageInterface):
             session.execute(update_stmt)
         return False
 
+    def mass_update_signals(self, signal_ids: List[int], changes: dict):
+        with self.session.begin() as session:
+            stmt = update(SignalDBModel).where(SignalDBModel.alert_id.in_(signal_ids))
+            stmt = stmt.values(changes)
+            session.execute(stmt)
+
     def update_or_create_signal(self, signal: storage.SignalModel) -> bool:
         to_insert = SignalDBModel(
             **{

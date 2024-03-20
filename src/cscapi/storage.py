@@ -111,6 +111,11 @@ class StorageInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def mass_update_signals(self, signal_ids: List[int], changes: dict):
+        # changes is a dictionary with keys as the attributes to update and values as the new values
+        raise NotImplementedError
+
+    @abstractmethod
     def delete_signals(self, signal_ids: List[int]):
         raise NotImplementedError
 

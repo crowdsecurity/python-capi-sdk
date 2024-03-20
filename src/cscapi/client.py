@@ -24,7 +24,7 @@ CAPI_ENROLL_ENDPOINT = "/watchers/enroll"
 CAPI_SIGNALS_ENDPOINT = "/signals"
 CAPI_DECISIONS_ENDPOINT = "/decisions/stream"
 CAPI_METRICS_ENDPOINT = "/metrics"
-SIGNAL_BATCH_LIMIT = 1000
+SIGNAL_BATCH_LIMIT = 5000
 
 
 def has_valid_token(
@@ -237,12 +237,10 @@ class CAPIClient:
         return result
 
     def _mark_signals_as_sent(self, signals: Tuple[SignalModel]) -> List[int]:
-        result = []
-        for signal in signals:
-            self.storage.update_or_create_signal(replace(signal, sent=True))
-            result.append(signal.alert_id)
+        signal_ids = [signal.alert_id for signal in signals]
+        self.storage.mass_update_signals(signal_ids=signal_ids, changes={"sent": True})
 
-        return result
+        return signal_ids
 
     def _send_metrics_for_machine(self, machine: MachineModel):
         for _ in range(self.max_retries + 1):

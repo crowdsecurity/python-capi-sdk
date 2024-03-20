@@ -289,3 +289,27 @@ class TestSQLStorage(TestCase):
         signal = signals[0]
 
         assert signal.sent == True
+
+    def test_mass_update_signals(self):
+        assert self.storage.get_signals(limit=1000) == []
+
+        for x in range(10):
+            self.storage.update_or_create_signal(mock_signals()[0])
+
+        signals = self.storage.get_signals(limit=1000)
+
+        assert len(signals) == 10
+        for s in signals:
+            assert s.sent == False
+            assert s.scenario_trust == "trusted"
+        signal_ids = [s.alert_id for s in signals]
+        self.storage.mass_update_signals(
+            signal_ids, {"sent": True, "scenario_trust": "manual"}
+        )
+
+        signals = self.storage.get_signals(limit=1000)
+
+        assert len(signals) == 10
+        for s in signals:
+            assert s.sent == True
+            assert s.scenario_trust == "manual"
