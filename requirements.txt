@@ -5,3 +5,4 @@ dacite
 importlib-metadata
 pyjwt
 more-itertools
+mongoengine==0.26.0
