@@ -3,7 +3,7 @@ from dataclasses import asdict
 from typing import List, Optional
 
 from dacite import from_dict
-from mongoengine import Document, EmbeddedDocument, connect, fields
+from mongoengine import Document, EmbeddedDocument, fields
 
 from cscapi.storage import MachineModel, SignalModel, StorageInterface
 
@@ -66,9 +66,6 @@ class MachineDBModel(Document):
 
 
 class MongoDBStorage(StorageInterface):
-    def __init__(self, connection_string="mongodb://127.0.0.1:27017/cscapi"):
-        connect(host=connection_string, connect=False, uuidRepresentation="standard")
-
     def mass_update_signals(self, signal_ids: List[int], changes: dict):
         SignalDBModel.objects.filter(alert_id__in=signal_ids).update(**changes)
 
