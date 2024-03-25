@@ -145,7 +145,6 @@ class MongoDBStorage(StorageInterface):
             result = MachineDBModel.objects.get(machine_id=machine.machine_id)
         except MachineDBModel.DoesNotExist:
             MachineDBModel.objects.create(**asdict(machine))
-            MachineDBModel.objects.create(**asdict(machine))
             return True
         else:
             result.update(**asdict(machine))
