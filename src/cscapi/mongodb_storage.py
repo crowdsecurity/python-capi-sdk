@@ -3,7 +3,7 @@ from dataclasses import asdict
 from typing import List, Optional
 
 from dacite import from_dict
-from mongoengine import Document, EmbeddedDocument, fields
+from mongoengine import Document, EmbeddedDocument, Q, connect, fields
 
 from cscapi.storage import MachineModel, SignalModel, StorageInterface
 
@@ -65,6 +65,13 @@ class MachineDBModel(Document):
     is_failing = fields.BooleanField(default=False)
 
 
+connect(
+    host="mongodb://127.0.0.1:27017/cscapi",
+    connect=False,
+    uuidRepresentation="standard",
+)
+
+
 class MongoDBStorage(StorageInterface):
     def mass_update_signals(self, signal_ids: List[int], changes: dict):
         SignalDBModel.objects.filter(alert_id__in=signal_ids).update(**changes)
@@ -76,62 +83,52 @@ class MongoDBStorage(StorageInterface):
         sent: Optional[bool] = None,
         is_failing: Optional[bool] = None,
     ) -> List[SignalModel]:
-        results: [SignalDBModel] = []  # handle results after first filter ("sent")
-        final: [SignalDBModel] = []  # handle final results that will be returned
         join_name = "joined"
-        with SignalDBModel.objects.aggregate(
-            [
-                {  # performs a left outer join and return an object called as join_name
-                    "$lookup": {
-                        "from": MachineDBModel._get_collection_name(),
-                        "localField": "machine_id",
-                        "foreignField": "machine_id",
-                        "as": join_name,
-                    }
-                },
-                {  # if a machine isn't found, fill the value of is_failing with None at object root level
-                    # otherwise copy the value of the attribute from the matching machine to root level
-                    "$set": {
-                        "is_failing": {
-                            "$cond": {
-                                "if": {"$eq": [{"$size": f"${join_name}"}, 0]},
-                                "then": None,
-                                "else": {
-                                    "$arrayElemAt": [f"${join_name}.is_failing", 0]
-                                },
-                            }
+        filter_sent = Q()
+        filter_is_failing = {}
+
+        if sent is not None:
+            if sent:
+                filter_sent = Q(sent=True)
+            else:
+                filter_sent = Q(sent=False) | Q(sent=None)
+
+        if is_failing is not None:
+            if is_failing:
+                filter_is_failing = {"$match": {"is_failing": True}}
+            else:
+                filter_is_failing = {
+                    "$match": {"$or": [{"is_failing": False}, {"is_failing": None}]}
+                }
+
+        pipeline = [
+            {  # performs a left outer join and return an object called as join_name
+                "$lookup": {
+                    "from": MachineDBModel._get_collection_name(),
+                    "localField": "machine_id",
+                    "foreignField": "machine_id",
+                    "as": join_name,
+                }
+            },
+            {  # if a machine isn't found, fill the value of is_failing with None at object root level
+                # otherwise copy the value of the attribute from the matching machine to root level
+                "$set": {
+                    "is_failing": {
+                        "$cond": {
+                            "if": {"$eq": [{"$size": f"${join_name}"}, 0]},
+                            "then": None,
+                            "else": {"$arrayElemAt": [f"${join_name}.is_failing", 0]},
                         }
                     }
-                },
-            ]
-        ) as join:
-            for entry in join:
-                # if "sent" parameter has not been set add everything
-                if sent is not None:
-                    if sent:
-                        if entry["sent"] is True:
-                            results.append(entry)
-                        continue
-                    else:
-                        # value "false" can be False or None
-                        if entry["sent"] is False or entry["sent"] is None:
-                            results.append(entry)
-                        continue
-                results.append(entry)
-            for entry in results:
-                # if is_failing parameter has not been set add everything
-                if is_failing is not None:
-                    if is_failing:
-                        if entry["is_failing"] is True:
-                            final.append(entry)
-                        continue
-                    else:
-                        # value "false" can be False or None
-                        if entry["is_failing"] is False or entry["is_failing"] is None:
-                            final.append(entry)
-                        continue
-                final.append(entry)
-        return [from_dict(SignalModel, res) for res in final[offset : offset + limit]]
+                }
+            },
+        ]
+        if filter_is_failing:
+            pipeline.append(filter_is_failing)
+        pipeline.extend([{"$limit": limit + offset}, {"$skip": offset}])
+
+        results = SignalDBModel.objects.filter(filter_sent).aggregate(pipeline)
+        return [from_dict(SignalModel, res) for res in results]
 
     def get_machine_by_id(self, machine_id: str) -> Optional[MachineModel]:
         machine = MachineDBModel.objects.filter(machine_id=machine_id).first()
