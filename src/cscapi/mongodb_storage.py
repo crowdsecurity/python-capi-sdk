@@ -3,7 +3,14 @@ from dataclasses import asdict
 from typing import List, Optional
 
 from dacite import from_dict
-from mongoengine import Document, EmbeddedDocument, Q, connect, fields
+from mongoengine import (
+    ConnectionFailure,
+    Document,
+    EmbeddedDocument,
+    Q,
+    connect,
+    fields,
+)
 
 from cscapi.storage import MachineModel, SignalModel, StorageInterface
 
@@ -65,11 +72,16 @@ class MachineDBModel(Document):
     is_failing = fields.BooleanField(default=False)
 
 
-connect(
-    host="mongodb://127.0.0.1:27017/cscapi",
-    connect=False,
-    uuidRepresentation="standard",
-)
+try:
+    connect(
+        host="mongodb://127.0.0.1:27017/cscapi",
+        connect=False,
+        uuidRepresentation="standard",
+    )
+except ConnectionFailure:
+    logger.info(
+        "There is already an existing connection to MongoDB. Using that as default."
+    )
 
 
 class MongoDBStorage(StorageInterface):
