@@ -72,19 +72,19 @@ class MachineDBModel(Document):
     is_failing = fields.BooleanField(default=False)
 
 
-try:
-    connect(
-        host="mongodb://127.0.0.1:27017/cscapi",
-        connect=False,
-        uuidRepresentation="standard",
-    )
-except ConnectionFailure:
-    logger.info(
-        "There is already an existing connection to MongoDB. Using that as default."
-    )
-
-
 class MongoDBStorage(StorageInterface):
+    def __init__(self, connection_string="mongodb://127.0.0.1:27017/cscapi"):
+        try:
+            connect(
+                host="mongodb://127.0.0.1:27017/cscapi",
+                connect=False,
+                uuidRepresentation="standard",
+            )
+        except ConnectionFailure:
+            logger.info(
+                "There is already an existing connection to MongoDB. Using that as default."
+            )
+
     def mass_update_signals(self, signal_ids: List[int], changes: dict):
         SignalDBModel.objects.filter(alert_id__in=signal_ids).update(**changes)
 
