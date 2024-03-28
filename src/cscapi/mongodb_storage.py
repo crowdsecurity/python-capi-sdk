@@ -63,6 +63,8 @@ class SignalDBModel(Document):
     decisions = fields.EmbeddedDocumentListField(DecisionDBModel)
     source = fields.EmbeddedDocumentField(SourceDBModel)
 
+    meta = {"collection": "signal_models"}
+
 
 class MachineDBModel(Document):
     machine_id = fields.StringField(max_length=128, unique=True)
@@ -70,6 +72,8 @@ class MachineDBModel(Document):
     password = fields.StringField()
     scenarios = fields.StringField()
     is_failing = fields.BooleanField(default=False)
+
+    meta = {"collection": "machine_models"}
 
 
 class MongoDBStorage(StorageInterface):
