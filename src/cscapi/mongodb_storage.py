@@ -161,13 +161,31 @@ class MongoDBStorage(StorageInterface):
             return False
 
     def update_or_create_signal(self, signal: SignalModel) -> bool:
+        # Filter out the keys for embedded documents to handle them separately
         signal_filtered = {
             k: v
             for k, v in asdict(signal).items()
             if k not in ["source", "context", "decisions"]
         }
-        signal_db_model = SignalDBModel(**signal_filtered)
 
+        created = False  # Flag to track if a new document is created
+
+        # Only proceed if alert_id is not None
+        if signal.alert_id is not None:
+            try:
+                signal_db_model = SignalDBModel.objects.get(alert_id=signal.alert_id)
+                logger.info(signal_filtered)
+                signal_db_model.update(**signal_filtered)
+            except SignalDBModel.DoesNotExist:
+                # If it doesn't exist, create a new one with all the data including alert_id
+                signal_db_model = SignalDBModel(**signal_filtered)
+                created = True
+        else:
+            # If alert_id is None, directly create a new model with the provided data
+            signal_db_model = SignalDBModel(**signal_filtered)
+            created = True
+
+        # Update or set the source, context, and decisions fields
         if signal.source:
             signal_db_model.source = SourceDBModel(**asdict(signal.source))
 
@@ -181,18 +199,10 @@ class MongoDBStorage(StorageInterface):
                 DecisionDBModel(**asdict(dec)) for dec in signal.decisions
             ]
 
-        try:
-            # this if is necessary in order to make mongo
-            # create a new object id when None is passed
-            if not signal.alert_id:
-                signal.alert_id = -1
-            result = SignalDBModel.objects.get(alert_id=signal.alert_id)
-        except SignalDBModel.DoesNotExist:
-            signal_db_model.save()
-            return True
-        else:
-            result.update(**asdict(signal))
-            return False
+        # Save the model (works for both creating a new document and updating an existing one)
+        signal_db_model.save()
+
+        return created
 
     def delete_signals(self, signal_ids: List[int]):
         SignalDBModel.objects.filter(alert_id__in=signal_ids).delete()
