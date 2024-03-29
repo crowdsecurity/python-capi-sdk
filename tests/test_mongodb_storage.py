@@ -66,9 +66,13 @@ class TestMongoDBStorage(TestCase):
     def setUpClass(cls):
         # Use .env file to modify variables
         mongodb_connection = (
-            os.getenv("TEST_MONGODB_CONNECTION") if os.getenv("TEST_MONGODB_CONNECTION") else "mongodb://127.0.0.1:27017/cscapi_test"
+            os.getenv("TEST_MONGODB_CONNECTION")
+            if os.getenv("TEST_MONGODB_CONNECTION")
+            else "mongodb://127.0.0.1:27017/cscapi_test"
         )
-        cls.storage: MongoDBStorage = MongoDBStorage(connection_string=mongodb_connection)
+        cls.storage: MongoDBStorage = MongoDBStorage(
+            connection_string=mongodb_connection
+        )
         cls.client = CAPIClient(
             cls.storage,
             CAPIClientConfig(
