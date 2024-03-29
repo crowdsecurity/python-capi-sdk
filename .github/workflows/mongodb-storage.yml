@@ -1,0 +1,71 @@
+name: MongoDB storage tests
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+jobs:
+  mongodb-tests:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install DDEV
+      run: |
+        # @see https://ddev.readthedocs.io/en/stable/#installationupgrade-script-linux-and-macos-armarm64-and-amd64-architectures
+        curl -fsSL https://apt.fury.io/drud/gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/ddev.gpg > /dev/null
+        echo "deb [signed-by=/etc/apt/trusted.gpg.d/ddev.gpg] https://apt.fury.io/drud/ * *" | sudo tee /etc/apt/sources.list.d/ddev.list
+        sudo apt-get -q update
+        sudo apt-get -q -y install libnss3-tools ddev
+        mkcert -install
+        ddev config global --instrumentation-opt-in=false --omit-containers=ddev-ssh-agent
+
+    - name: Create DDEV project
+      run: |
+        ddev config --project-type=python --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm
+        ddev get ddev/ddev-mongo
+        ddev get julienloizelet/ddev-tools
+        ddev start
+
+    - name: Create MongoDB user with all privileges on a test database
+      run: |
+        ddev mongosh "mongodb://mongo:27017/cscapi_test" --username db --password db --authenticationDatabase admin --eval 'db.createUser({user: "cs", pwd: "cs", roles: ["readWrite", "dbAdmin", "userAdmin"]});'   
+
+    - name: Set MONGO_IP variable
+      run: echo "MONGO_IP=$(ddev find-ip mongo)" >> $GITHUB_ENV
+
+    - name: Set .env variable
+      run: |
+        echo "TEST_MONGODB_CONNECTION=mongodb://cs:cs@${{ env.MONGO_IP }}:27017/cscapi_test" > .env
+
+    - name: Install setuptools
+      if: contains(fromJson('["3.12"]'),matrix.python-version)
+      run: |
+        python -m pip install --upgrade pip setuptools wheel    
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python setup.py install
+        python -m pip install -r requirements-dev.txt
+
+    - name: Tests
+      run: |
+        python -m pytest tests/test_mongodb_storage.py -s

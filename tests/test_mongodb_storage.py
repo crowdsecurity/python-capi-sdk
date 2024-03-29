@@ -1,4 +1,5 @@
 import random
+import os
 import time
 from unittest import TestCase
 
@@ -63,7 +64,11 @@ class TestMongoDBStorage(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.storage: MongoDBStorage = MongoDBStorage()
+        # Use .env file to modify variables
+        mongodb_connection = (
+            os.getenv("TEST_MONGODB_CONNECTION") if os.getenv("TEST_MONGODB_CONNECTION") else "mongodb://127.0.0.1:27017/cscapi_test"
+        )
+        cls.storage: MongoDBStorage = MongoDBStorage(connection_string=mongodb_connection)
         cls.client = CAPIClient(
             cls.storage,
             CAPIClientConfig(
