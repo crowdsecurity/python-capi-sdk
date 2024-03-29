@@ -8,4 +8,4 @@ mysql-connector-python
 pymysql
 pg8000
 psutil
-
+mongoengine

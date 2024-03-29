@@ -80,7 +80,7 @@ class MongoDBStorage(StorageInterface):
     def __init__(self, connection_string="mongodb://127.0.0.1:27017/cscapi"):
         try:
             connect(
-                host="mongodb://127.0.0.1:27017/cscapi",
+                host=connection_string,
                 connect=False,
                 uuidRepresentation="standard",
             )

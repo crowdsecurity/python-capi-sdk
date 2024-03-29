@@ -23,3 +23,9 @@
 ```bash
 pip install cscapi
 ```
+
+If you want to use a MongoDB implementation, you can run:
+
+```bash
+pip install cscapi[mongodb]
+```
