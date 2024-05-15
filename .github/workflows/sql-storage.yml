@@ -10,6 +10,8 @@ on:
     paths-ignore:
       - '**.md'
   workflow_dispatch:
+  schedule:
+    - cron: '35 02 * * THU'
 
 jobs:
   sql-tests:
