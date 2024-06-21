@@ -11,6 +11,7 @@
   - [Virtual environment](#virtual-environment)
   - [Install dependencies](#install-dependencies)
   - [Unit tests](#unit-tests)
+- [Update documentation table of contents](#update-documentation-table-of-contents)
 - [Release process](#release-process)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -38,6 +39,24 @@ pip install -r requirements-dev.txt
 ```bash
 python -m pytest
 ```
+
+
+## Update documentation table of contents
+
+To update the table of contents in the documentation, you can use [the `doctoc` tool](https://github.com/thlorenz/doctoc).
+
+First, install it:
+
+```bash
+npm install -g doctoc
+```
+
+Then, run it in the documentation folder:
+
+```bash
+doctoc docs/*
+```
+
 
 ## Release process
 
