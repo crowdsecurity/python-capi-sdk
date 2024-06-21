@@ -97,7 +97,7 @@ class StorageInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_machine_by_id(self, machine_id: str) -> MachineModel:
+    def get_machine_by_id(self, machine_id: str) -> Optional[MachineModel]:
         raise NotImplementedError
 
     @abstractmethod
