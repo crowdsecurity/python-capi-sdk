@@ -10,6 +10,15 @@ functions provided by the `src/cscapi` folder.
 
 --- 
 
+## [0.7.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.7.0) - 2024-06-27
+[_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.6.0...v0.7.0)
+
+### Changed
+
+- Do not block signals sending in the event of machine failure ([#31](https://github.com/crowdsecurity/python-capi-sdk/pull/31))
+
+---
+
 ## [0.6.0](https://github.com/crowdsecurity/python-capi-sdk/releases/tag/v0.6.0) - 2024-03-29
 [_Compare with previous release_](https://github.com/crowdsecurity/python-capi-sdk/compare/v0.5.0...v0.6.0)
 
