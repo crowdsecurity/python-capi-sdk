@@ -13,6 +13,9 @@ on:
     - cron: '25 02 * * THU'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   unittests:
 
