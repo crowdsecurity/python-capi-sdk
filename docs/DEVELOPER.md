@@ -22,6 +22,8 @@
 ### Virtual environment
 
 ```bash
+pyenv install 3.12.0
+pyenv local 3.12.0
 python -m venv venv
 source venv/bin/activate
 ```
@@ -29,15 +31,16 @@ source venv/bin/activate
 ### Install dependencies
 
 ```bash
-pip install --upgrade pip
-python install -r requirements.txt
+python -m pip install --upgrade pip setuptools wheel   
+pip install -r requirements.txt
 pip install -r requirements-dev.txt
+python -m pip install .
 ```
 
 ### Unit tests
 
 ```bash
-python -m pytest
+python -m pytest -s -k 'not mongodb'
 ```
 
 

@@ -152,3 +152,6 @@ src/cscapi/_version.py
 # customm scripts
 examples/**/perf*
 examples/**/*mongo*
+
+#pyenv
+.python-version
