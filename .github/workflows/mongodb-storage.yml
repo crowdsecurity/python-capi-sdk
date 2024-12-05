@@ -48,7 +48,7 @@ jobs:
 
     - name: Create DDEV project
       run: |
-        ddev config --project-type=python --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm
+        ddev config --project-type=php --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm
         ddev get ddev/ddev-mongo
         ddev get julienloizelet/ddev-tools
         ddev start

@@ -54,7 +54,7 @@ jobs:
     - name: Create DDEV project
       if: ${{ matrix.sql-engine != 'sqlite' }}
       run: |
-        ddev config --project-type=python --database ${{ matrix.sql-engine }} --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm --host-db-port 5432
+        ddev config --project-type=php --database ${{ matrix.sql-engine }} --project-name=crowdsec-python-capi-sdk --webserver-type nginx-fpm --host-db-port 5432
         ddev start
 
     - name: Grant privileges
